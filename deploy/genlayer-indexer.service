@@ -1,0 +1,26 @@
+[Unit]
+Description=GenLayer Explorer indexer
+After=network-online.target postgresql.service
+Wants=network-online.target
+# Keep retrying rather than hitting the default start-limit and giving up.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/pathrock/explorers/genlayer-bradbury/current/packages/indexer
+EnvironmentFile=/opt/pathrock/explorers/genlayer-bradbury/current/.env
+# Node comes from nvm on this host; adjust if Node is installed elsewhere.
+Environment=PATH=/opt/pathrock/runtime/node/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/opt/pathrock/explorers/genlayer-bradbury/current/packages/indexer/node_modules/.bin/tsx src/index.ts
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=genlayer-indexer
+
+[Install]
+WantedBy=multi-user.target
