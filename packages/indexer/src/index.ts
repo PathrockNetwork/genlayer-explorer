@@ -1,3 +1,4 @@
+import { pollFinalized } from "./follower";
 /**
  * GenLayer explorer indexer: follows finalized blocks over JSON-RPC into Postgres.
  *
@@ -126,18 +127,12 @@ async function saveState(): Promise<void> {
 async function follow(): Promise<void> {
   while (!stopping) {
     try {
-      finalized = await finalizedHeight();
-      if (head === null) head = finalized - 1;
-      while (!stopping && head < finalized) {
-        const nums = Array.from({ length: Math.min(FETCH_CONCURRENCY * 4, finalized - head) }, (_, i) => head! + 1 + i);
-        const parsed = await fetchMany(nums);
-        for (const p of parsed) {
-          await persist(p);
-          head = p.block.number;
-          stats.live++;
-        }
-        await saveState();
-      }
+      await pollFinalized({
+        finalized: finalizedHeight, head: () => head,
+        setHead: n => { head = n; }, setFinalized: n => { finalized = n; },
+        fetch: fetchMany, persist: async p => { await persist(p); stats.live++; },
+        saveState, stopping: () => stopping, batchSize: FETCH_CONCURRENCY * 4,
+      });
     } catch (err) {
       log("follow error", { err: (err as Error).message });
       await sleep(2_000);
