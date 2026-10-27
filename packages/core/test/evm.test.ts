@@ -86,7 +86,7 @@ describe("token metadata decoding", () => {
 });
 
 describe("formatUnits", () => {
-  it("formats MON amounts", () => {
+  it("formats GEN amounts", () => {
     expect(formatUnits("1000000000000000000")).toBe("1");
     expect(formatUnits("1234567890000000000000")).toBe("1,234.56789");
     expect(formatUnits("1", 18)).toBe("0");
@@ -94,12 +94,13 @@ describe("formatUnits", () => {
   });
 });
 
-describe("proposer attribution", () => {
-  it("reads the proposer id from the staking precompile's ValidatorRewarded event", async () => {
-    const { VALIDATOR_REWARDED_TOPIC } = await import("../src/evm");
-    const block = { number: "0x1", hash: "0xh", parentHash: "0xp", timestamp: "0x1", miner: A, gasUsed: "0x0", gasLimit: "0x1", transactions: [{ hash: "0xs", transactionIndex: "0x0", from: B, to: "0x0000000000000000000000000000000000001000", value: "0x0", nonce: "0x0", type: "0x0", gas: "0x0", input: "0x791bdcf3" }] };
-    const receipts = [{ transactionHash: "0xs", status: "0x1", gasUsed: "0x0", effectiveGasPrice: "0x0", logs: [{ address: "0x0000000000000000000000000000000000001000", logIndex: "0x0", topics: [VALIDATOR_REWARDED_TOPIC, pad("2a"), pad(B)], data: "0x" }] }];
-    expect(parseBlock(block, receipts).block.proposerId).toBe(42);
-    expect(parseBlock({ ...block, transactions: [] }, []).block.proposerId).toBeNull();
+describe("rollup block context", () => {
+  const block = { number: "0x0", hash: "0xh", parentHash: "0xp", timestamp: "0x1", miner: A, gasUsed: "0x0", gasLimit: "0x1", transactions: [] };
+  it("decodes parent height and message fields while preserving zero", () => {
+    expect(parseBlock({ ...block, l1BlockNumber: "0x0", sendCount: "0x0", sendRoot: "0xroot" }, []).block)
+      .toMatchObject({ number: 0, l1BlockNumber: 0, sendCount: 0, sendRoot: "0xroot" });
+  });
+  it("keeps missing rollup fields unknown", () => {
+    expect(parseBlock(block, []).block).toMatchObject({ l1BlockNumber: null, sendCount: null, sendRoot: null });
   });
 });
