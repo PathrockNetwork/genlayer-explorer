@@ -362,11 +362,15 @@ export function registerRoutes(app: FastifyInstance, { pool, rpc }: Deps): void 
   app.get("/api/v1/search", async (req, reply) => {
     const raw = String((req.query as any).q ?? "").trim();
     if (/^\d+$/.test(raw)) return { type: "block", id: raw };
-    if (isAddress(raw)) return { type: "address", id: raw.toLowerCase() };
+    if (isAddress(raw)) {
+      const address=raw.toLowerCase();
+      const found=await q("SELECT address FROM gen_contracts WHERE address=$1",[address]);
+      return {type:found.rows.length?"contract":"address",id:address};
+    }
     if (isHash(raw)) {
       const h = raw.toLowerCase();
       const { rows } = await q(
-        `select 'tx' as type, hash as id from transactions where hash = $1 union all select 'block', number::text as id from blocks where hash = $1 limit 1`,
+        `select 'tx' as type, hash as id from transactions where hash = $1 union all select 'block', number::text as id from blocks where hash = $1 union all select 'consensus',id from gen_transactions where id=$1 limit 1`,
         [h],
       );
       if (rows[0]) return { type: rows[0].type, id: rows[0].id };

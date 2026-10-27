@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import { JsonRpc, createDb, loadEnv, rpcUrlsFromEnv } from "@genlayer-explorer/core";
+import { registerGenLayerRoutes } from "./genlayer.js";
 import { registerRoutes } from "./routes.js";
 import { registerNetworkRoutes } from "./network.js";
 
@@ -58,6 +59,7 @@ fastify.setErrorHandler((err: Error & { statusCode?: number }, req, reply) => {
 
 registerRoutes(fastify, { pool, rpc });
 registerNetworkRoutes(fastify, { pool, rpc });
+registerGenLayerRoutes(fastify, { pool, rpc });
 
 /** Which web bundle is deployed, so long-lived tabs can offer a reload. */
 const deployedWeb = (() => {
