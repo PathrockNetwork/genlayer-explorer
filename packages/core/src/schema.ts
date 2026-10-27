@@ -4,6 +4,7 @@ import {
   index,
   doublePrecision,
   integer,
+  jsonb,
   numeric,
   pgTable,
   primaryKey,
@@ -175,4 +176,21 @@ export const syncState = pgTable("sync_state", {
   /** Newest block folded into usage_hourly. */
   usageRolledTo: bigint("usage_rolled_to", { mode: "number" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Native protocol metadata is retained independently of the rolling EVM window. */
+export const genContracts = pgTable("gen_contracts", {
+ address: text("address").primaryKey(), kind: text("kind").notNull(), creator: text("creator"),
+ deploymentId: text("deployment_id"), deploymentTx: text("deployment_tx"), deploymentBlock: bigint("deployment_block",{mode:"number"}),
+ deployedAt: timestamp("deployed_at",{withTimezone:true}), firstSeenBlock: bigint("first_seen_block",{mode:"number"}).notNull(), name: text("name"),
+ updatedAt: timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),
+});
+export const genTransactions = pgTable("gen_transactions", {
+ id: text("id").primaryKey(), recipient: text("recipient").notNull(), submissionHash: text("submission_hash").notNull(), blockNumber: bigint("block_number",{mode:"number"}).notNull(),
+ sender: text("sender"), createdAt: timestamp("created_at",{withTimezone:true}), status: text("status").notNull().default("Unknown"),kind:text("kind"),method:text("method"),
+ receipt:jsonb("receipt"),checkedAt:timestamp("checked_at",{withTimezone:true}),updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),
+});
+export const genSync = pgTable("gen_sync", {
+ id:integer("id").primaryKey(),head:bigint("head",{mode:"number"}).notNull(),historyNext:bigint("history_next",{mode:"number"}).notNull(),startBlock:bigint("start_block",{mode:"number"}).notNull(),
+ target:bigint("target",{mode:"number"}),updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),lastError:text("last_error"),
 });
