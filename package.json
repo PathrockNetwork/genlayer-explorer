@@ -11,8 +11,8 @@
     "dev": "pnpm -r --parallel --stream run dev",
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
-    "db:generate": "pnpm --filter @monad-explorer/core db:generate",
-    "db:migrate": "pnpm --filter @monad-explorer/core db:migrate",
+    "db:generate": "pnpm --filter @genlayer-explorer/core db:generate",
+    "db:migrate": "pnpm --filter @genlayer-explorer/core db:migrate",
     "test": "vitest run",
     "test:watch": "vitest"
   },

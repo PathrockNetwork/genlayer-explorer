@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // In dev, proxy API calls to the Fastify server.
-const target = `http://${process.env.API_HOST ?? "127.0.0.1"}:${process.env.API_PORT ?? 3001}`;
+const target = `http://${process.env.API_HOST ?? "127.0.0.1"}:${process.env.API_PORT ?? 3005}`;
 
 export default defineConfig({
   plugins: [react()],
