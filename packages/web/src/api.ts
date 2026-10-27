@@ -1,4 +1,4 @@
-/** Typed client for the Monad explorer REST API. Shapes mirror packages/api. */
+/** Typed client for the GenLayer explorer REST API. Shapes mirror packages/api. */
 
 /**
  * Drives which variant every panel renders. `dberror` is synthesised in the
@@ -21,6 +21,9 @@ export type Network = {
   earliest_indexed_time: string | null;
   blocks_indexed: number;
   backfill_target: number | null;
+  backfill_remaining: number | null;
+  latest_block_time: string | null;
+  observed_at: string;
   avg_block_time_ms: number | null;
   tps: number | null;
   blocks_24h: number;
@@ -197,14 +200,15 @@ export type Config = {
 
 export type SearchResult = { type: "block" | "tx" | "address"; id: string };
 
-/** L1-anchoring: how freshly and how densely GenLayer commits to its L1. */
+/** Parent-chain context from the latest indexed rollup block. */
 export type Anchor = {
-  latest_anchored_l1: number | null;
-  latest_anchored_time: string | null;
-  blocks_since_anchor: number | null;
-  anchors_24h: number | null;
-  avg_l1_lag_blocks: number | null;
-  window_blocks: number | null;
+  latest_l1_block: number | null;
+  latest_l2_block: number | null;
+  latest_time: string | null;
+  send_count: number | null;
+  send_root: string | null;
+  window_blocks: number;
+  blocks_with_l1: number;
 };
 
 export class ApiError extends Error {
@@ -217,7 +221,7 @@ export class ApiError extends Error {
 }
 
 export async function get<T>(path: string): Promise<T> {
-  const r = await fetch(path, { headers: { accept: "application/json" } });
+  const r = await fetch(path, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(15_000) });
   if (!r.ok) {
     let detail = `${r.status}`;
     try {
