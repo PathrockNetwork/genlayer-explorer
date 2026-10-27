@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Dashboard } from "../useDashboard";
 import { get, getAnchor, getBlocks, getTransactions } from "../api";
 import { usePolling } from "../usePolling";
+import { activityBuckets } from "../overviewActivity";
 import { fmt, gen, gwei, short } from "../lib";
 import { Timestamp } from "../components/Timestamp";
 import { CopyButton, EmptyState, Section, Skeleton } from "../components/ui";
@@ -31,10 +32,8 @@ export function Overview({ d, live, copied, onCopy }: {
   const net = d.net;
   const a = context.data;
   const status = !live ? "Updates paused" : d.error ? "Data unavailable" : d.state === "loading" ? "Connecting" : d.state === "stopped" ? "Indexer heartbeat stale" : d.state === "empty" ? "Waiting for indexed blocks" : d.state === "backfill" ? "Synchronizing" : "Caught up to finalized head";
-  const bucket = (activity.data?.bucket_secs ?? 900) * 1000;
-  const end = Math.floor((activity.updatedAt?.getTime() ?? Date.now()) / bucket) * bucket;
-  const counts = new Map((activity.data?.points ?? []).map(p => [Date.parse(p.t), p.txs]));
-  const minutes = Array.from({ length: 96 }, (_, i) => { const time = end - (95 - i) * bucket; return { time, txs: counts.get(time) ?? 0 }; });
+  const minutes = activityBuckets(activity.data?.points ?? [], activity.data?.bucket_secs ?? 900, activity.updatedAt?.getTime() ?? Date.now());
+  const barStep = 480 / minutes.length;
   const peak = Math.max(1, ...minutes.map(p => p.txs));
   return <div className="gen-overview">
     <div className="gen-status"><span className={`gen-status-label ${live && d.state === "normal" ? "ready" : ""}`}><i />{status}</span><span>Bradbury · Chain 4221 · EVM activity</span><button type="button" onClick={() => { d.refresh(); blocks.refresh(); transactions.refresh(); context.refresh(); activity.refresh(); }}>Refresh data</button></div>
@@ -66,7 +65,7 @@ export function Overview({ d, live, copied, onCopy }: {
       </Section>
       <Section title="Finalized activity" className="gen-panel" aside={<span className="gen-tag">Past 24 hours</span>}>
         {activity.error && <Failure message="Activity could not be refreshed." retry={activity.refresh} stale={!!activity.data} />}
-        <div className="gen-activity"><strong>{activity.data ? fmt(minutes.reduce((n,p) => n+p.txs, 0)) : "—"}<small>indexed transactions</small></strong><svg className="gen-bars" viewBox="0 0 480 145" role="img" aria-label="Indexed transactions per 15-minute bucket over the past 24 hours">{minutes.map((p,i) => <rect key={p.time} x={i*5+1} y={130-(p.txs/peak)*112} width="3" height={Math.max(1,(p.txs/peak)*112)} rx="2" opacity={p.txs ? 1 : .2}><title>{new Date(p.time).toISOString()}: {p.txs} transactions</title></rect>)}<line x1="0" x2="480" y1="131" y2="131" /></svg><div className="gen-chart-axis"><span>24 h ago</span><span>Now</span></div></div>
+        <div className="gen-activity"><strong>{activity.data ? fmt(minutes.reduce((n,p) => n+p.txs, 0)) : "—"}<small>indexed transactions</small></strong><svg className="gen-bars" viewBox="0 0 480 145" role="img" aria-label="Indexed transactions per 15-minute bucket over the past 24 hours">{minutes.map((p,i) => <rect key={p.time} x={i * barStep + 1} y={130-(p.txs/peak)*112} width={Math.max(1, barStep - 2)} height={Math.max(1,(p.txs/peak)*112)} rx="2" opacity={p.txs ? 1 : .2}><title>{new Date(p.time).toISOString()}: {p.txs} transactions</title></rect>)}<line x1="0" x2="480" y1="131" y2="131" /></svg><div className="gen-chart-axis"><span>24 h ago</span><span>Now</span></div></div>
         <dl className="gen-facts"><div><dt>Blocks behind finalized head</dt><dd>{net?.lag_blocks == null ? "—" : fmt(net.lag_blocks)}</dd></div><div><dt>History blocks remaining</dt><dd>{net?.backfill_remaining == null ? "—" : fmt(net.backfill_remaining)}</dd></div><div><dt>Latest indexed block</dt><dd><Timestamp value={net?.latest_block_time} /></dd></div></dl>
         <p className="gen-context-foot">Counts cover indexed finalized blocks. Newer chain activity appears after the RPC marks it finalized.</p>
       </Section>
