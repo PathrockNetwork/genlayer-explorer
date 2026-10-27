@@ -1,7 +1,7 @@
-# genlayer-monitor
+# GenLayer Explorer
 
 GenLayer explorer (bradbury testnet) — blocks, transactions, token transfers,
-usage analytics, and GenLayer's L1-anchoring cadence. A Pathrock Network
+indexed activity, and parent-chain block context. A Pathrock Network
 explorer: same codebase family as `monad-explorer`, ported to GenLayer's
 EVM JSON-RPC surface.
 
@@ -17,11 +17,11 @@ EVM JSON-RPC surface.
 
 ## GenLayer specifics
 
-- Blocks carry `l1BlockNumber` / `sendCount` / `sendRoot` — the L1-anchoring
-  commitment. Indexed per block and surfaced on the overview and block pages
-  plus `/api/v1/anchor`.
-- No staking precompile, no trace methods, no BFT-stage subscription on the
-  public RPC, so those Monad-explorer features are absent rather than stubbed.
+- This explorer covers the Bradbury EVM chain (4221). Intelligent-contract consensus is a separate layer.
+- `l1BlockNumber` is the parent block observed by the sequencer; `sendCount` and `sendRoot` are rollup message-tree fields. `/api/v1/anchor` exposes these as context, without inferring settlement or consensus finality.
+- The overview shows indexed head, block time, transaction rate, gas price, recent blocks and transactions, and finalized activity. Zero values, unavailable data, request failures, and paused refreshes are distinct states.
+- Backfill completeness counts missing blocks in the target range. The indexer updates its heartbeat after every successful finalized-head poll, including idle periods.
+- References: [GenLayer networks](https://docs.genlayer.com/developers/networks) and [Arbitrum block fields](https://docs.arbitrum.io/build-decentralized-apps/troubleshooting-building).
 
 ## Setup
 
