@@ -87,7 +87,7 @@ export function Settings({ d, theme, onTheme }: { d: Dashboard; theme: Theme; on
     { name: "Indexed history", icon: "archive", status: firstBlock != null ? `From ${fmt(firstBlock)}` : "Unknown", tone: firstBlock != null ? "ok" : "muted", note: d.net ? `${fmt(d.net.blocks_indexed)} blocks currently indexed.` : "No indexed starting height reported." },
     { name: "RPC read-through", icon: "server", status: "Enabled", tone: "ok", note: "Older blocks and transactions are fetched from RPC on demand." },
     { name: "Parent-chain context", icon: "chain", status: "Available", tone: "ok", note: "Parent block and send-tree fields reported by indexed rollup blocks." },
-    { name: "Data scope", icon: "file", status: "EVM chain", tone: "ok", note: "Blocks, transactions, receipts and token transfers. Intelligent-contract consensus is a separate layer." },
+    { name: "Data scope", icon: "file", status: "EVM + GenVM", tone: "ok", note: "Chain history, intelligent-contract source and methods, native events, and consensus receipts with validator rounds." },
   ] : [];
   const indexer: { title: string; value: string; note: string; icon: string; extra?: ReactNode }[] = cfg ? [
     { title: "Head tag", value: cfg.indexer.head, note: "Block tag the indexer follows.", icon: "shield" },

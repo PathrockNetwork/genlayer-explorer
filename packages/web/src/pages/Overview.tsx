@@ -1,3 +1,4 @@
+import { NativeSummary } from "./Intelligence";
 import type { ReactNode } from "react";
 import type { Dashboard } from "../useDashboard";
 import { get, getAnchor, getBlocks, getTransactions } from "../api";
@@ -38,6 +39,8 @@ export function Overview({ d, live, copied, onCopy }: {
   return <div className="gen-overview">
     <div className="gen-status"><span className={`gen-status-label ${live && d.state === "normal" ? "ready" : ""}`}><i />{status}</span><span>Bradbury · Chain 4221 · EVM activity</span><button type="button" onClick={() => { d.refresh(); blocks.refresh(); transactions.refresh(); context.refresh(); activity.refresh(); }}>Refresh data</button></div>
     {d.error && <Failure message={d.error} retry={d.refresh} stale={!!net} />}
+    <NativeSummary live={live} />
+    <div className="int-section-heading"><div><span className="int-eyebrow">CHAIN ACTIVITY</span><h2>EVM blocks & transactions</h2></div><a href="#/blocks">Explore blocks ↗</a></div>
     <div className="gen-tiles">
       <Tile label="Indexed block" value={height(net?.indexed_head)} sub={<>Finalized {height(net?.chain_finalized)}</>} />
       <Tile label="Average block time" value={net?.avg_block_time_ms == null ? "—" : `${(net.avg_block_time_ms / 1000).toFixed(2)} s`} sub="Across the latest 1,000 blocks" />
@@ -70,6 +73,6 @@ export function Overview({ d, live, copied, onCopy }: {
         <p className="gen-context-foot">Counts cover indexed finalized blocks. Newer chain activity appears after the RPC marks it finalized.</p>
       </Section>
     </div>
-    <p className="gen-footer">GenLayer Bradbury · EVM chain explorer <a href="https://docs.genlayer.com/developers/networks" target="_blank" rel="noreferrer">Network documentation ↗</a></p>
+    <p className="gen-footer">GenLayer Bradbury · Intelligent contracts & chain explorer <a href="https://docs.genlayer.com/developers/networks" target="_blank" rel="noreferrer">Network documentation ↗</a></p>
   </div>;
 }

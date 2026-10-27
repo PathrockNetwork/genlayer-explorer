@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDashboard } from "./useDashboard";
+import { Contracts, Consensus } from "./pages/Intelligence";
 import { Overview } from "./pages/Overview";
 import { ApiDocs } from "./pages/ApiDocs";
 import { Settings } from "./pages/Settings";
@@ -21,6 +22,8 @@ export type Theme = "dark" | "light" | "system";
 
 type PageId =
   | "overview"
+  | "contracts"
+  | "consensus"
   | "blocks"
   | "transactions"
   | "endpoints"
@@ -30,6 +33,8 @@ type PageId =
 
 const NAV: { id: PageId; label: string; d: string }[] = [
   { id: "overview", label: "Overview", d: "M4 4h5v5H4zM11 4h5v3h-5zM4 12h5v4H4zM11 10h5v6h-5z" },
+  { id: "contracts", label: "Contracts", d: "M5 3h7l3 3v11H5zM12 3v4h3M8 10h4M8 13h4" },
+  { id: "consensus", label: "Consensus", d: "M10 3v4M4 13l6-6 6 6M4 13v4M10 7v10M16 13v4" },
   { id: "blocks", label: "Blocks", d: "m10 3 6 3.5v7L10 17l-6-3.5v-7zM4 6.5l6 3.5 6-3.5M10 10v7" },
   { id: "transactions", label: "Transactions", d: "M4 7h12m0 0-3-3m3 3-3 3M16 13H4m0 0 3-3m-3 3 3 3" },
   { id: "endpoints", label: "Network", d: "M4 10l6-6M4 10l6 6M4 10h12" },
@@ -44,6 +49,8 @@ const NAV: { id: PageId; label: string; d: string }[] = [
 
 const TITLES: Record<PageId, string> = {
   overview: "Network Overview",
+  contracts: "Contracts",
+  consensus: "Intelligent Contract Consensus",
   blocks: "Blocks / Chain history",
   transactions: "Transactions",
   endpoints: "Network",
@@ -54,6 +61,8 @@ const TITLES: Record<PageId, string> = {
 
 const SUBTITLES: Record<PageId, string> = {
   overview: "Live network data for the GenLayer Bradbury testnet (chain 4221).",
+  contracts: "Discover intelligent contracts, inspect source code, and explore their activity.",
+  consensus: "Follow native transactions, validator rounds, appeals, and execution results.",
   blocks: "Follow finalized blocks, their parent-chain references, gas, and transactions.",
   transactions: "Explore transactions, token transfers, fees, and execution results.",
   endpoints: "Public RPC endpoints — health, height, and latency.",
@@ -66,7 +75,7 @@ const VALID_PAGES = new Set<string>(NAV.map((n) => n.id));
 
 function pageFromLocation(): PageId {
   // Deep links carry a sub-path (#/transactions/<hash>); the page is the first segment.
-  const h = window.location.hash.replace(/^#\/?/, "").split("/")[0] ?? "";
+  const h = window.location.hash.replace(/^#\/?/, "").split(/[/?]/)[0] ?? "";
   if (VALID_PAGES.has(h)) return h as PageId;
   const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
   return (VALID_PAGES.has(path) ? path : "overview") as PageId;
@@ -222,14 +231,14 @@ export default function App() {
                 setMobileSearchOpen(false);
                 apiSearch(q)
                   .then((r) => {
-                    window.location.hash = r.type === "block" ? `/blocks/${r.id}` : r.type === "tx" ? `/transactions/${r.id}` : `/transactions/address/${r.id}`;
+                    window.location.hash = r.type === "block" ? `/blocks/${r.id}` : r.type === "tx" ? `/transactions/${r.id}` : r.type === "contract" ? `/contracts/${r.id}` : r.type === "consensus" ? `/consensus/${r.id}` : `/transactions/address/${r.id}`;
                     setSearch("");
                   })
                   .catch(() => setSearchError(true));
               }}
             >
               <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
-              <input ref={searchRef} value={search} onChange={(e) => { setSearch(e.target.value); setSearchError(false); }} placeholder="Search blocks, transactions, addresses…" aria-label="Search the network" aria-invalid={searchError} title={searchError ? "No block, transaction or address matches" : undefined} />
+              <input ref={searchRef} value={search} onChange={(e) => { setSearch(e.target.value); setSearchError(false); }} placeholder="Search blocks, transactions, contracts…" aria-label="Search the network" aria-invalid={searchError} title={searchError ? "No block, transaction or address matches" : undefined} />
               <kbd>⌘ K</kbd>
             </form>
             <div className="global-actions" style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
@@ -350,6 +359,8 @@ export default function App() {
               onCopy={onCopy}
             />
           )}
+          {page === "contracts" && <Contracts live={live} />}
+          {page === "consensus" && <Consensus live={live} />}
           {page === "blocks" && <Blocks d={d} live={live} />}
           {page === "transactions" && <Transactions d={d} live={live} />}
           {page === "endpoints" && <RpcDirectory d={d} />}
@@ -445,10 +456,10 @@ function Sidebar({
         // The desktop rail is a viewport layer, never a scroll container.
         // The mobile drawer is allowed to scroll when a short viewport cannot
         // fit the full navigation and sponsor card.
-        if (!mobileOpen) e.preventDefault();
+        if (!mobileOpen && !(e.target as HTMLElement).closest("nav")) e.preventDefault();
       }}
       onTouchMove={(e) => {
-        if (!mobileOpen) e.preventDefault();
+        if (!mobileOpen && !(e.target as HTMLElement).closest("nav")) e.preventDefault();
       }}
     >
       <div className="brand-lockup secret-brand-lockup">
@@ -487,7 +498,7 @@ function Sidebar({
             <span>{n.label}</span>
           </a>
           );
-          return item;
+          return <div key={n.id}>{n.id === "overview" && <span className="nav-group-label">EXPLORE</span>}{n.id === "contracts" && <span className="nav-group-label">INTELLIGENCE</span>}{n.id === "blocks" && <span className="nav-group-label">CHAIN</span>}{n.id === "rpc" && <span className="nav-group-label">DEVELOPERS</span>}{item}</div>;
         })}
       </nav>
       <a

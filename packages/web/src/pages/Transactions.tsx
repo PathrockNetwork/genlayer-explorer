@@ -1,3 +1,4 @@
+import { contractRoute, consensusRoute, getNativeTransactions, type NativeTransaction } from "../genlayer";
 import { preferredScrollBehavior } from "../appearance";
 import { Timestamp } from "../components/Timestamp";
 /** Recent GenLayer transactions, a transaction inspector, and address history. */
@@ -234,7 +235,7 @@ function Amount({ t }: { t: Transfer }) {
 function AddressBadges({ info }: { info: AddressInfo | null }) {
   if (!info) return null;
   return <div className="txe-badges">
-    {info.is_contract && <Chip tone="brand">Contract</Chip>}
+    {info.is_contract && <a href={contractRoute(info.address)}><Chip tone="brand">Contract details ↗</Chip></a>}
     {info.token && <Chip tone="ok" title={info.token.name ?? undefined}>{info.token.symbol ?? "Token"} · {info.token.standard.toUpperCase()}</Chip>}
   </div>;
 }
@@ -280,6 +281,8 @@ function TxDetailPanel({ hash, finalized, copied, onCopy, onClose }: { hash: str
     void getTransaction(hash).then((result) => { if (!cancelled) setDetail(result); }).catch((e) => { if (!cancelled) setError(e instanceof ApiError && e.status === 404 ? "Transaction not found on the GenLayer RPC." : "This transaction could not be loaded."); });
     return () => { cancelled = true; };
   }, [hash, retry]);
+  const [native,setNative]=useState<NativeTransaction[]>([]);
+  useEffect(()=>{let active=true;getNativeTransactions({submission:hash}).then(r=>{if(active)setNative(r.transactions);}).catch(()=>{});return()=>{active=false;};},[hash]);
   const tx = detail?.tx;
   const isFinal = tx?.block_number != null && finalized !== null ? tx.block_number <= finalized : null;
   const selector = tx && tx.input.length >= 10 ? tx.input.slice(0, 10) : null;
@@ -293,7 +296,8 @@ function TxDetailPanel({ hash, finalized, copied, onCopy, onClose }: { hash: str
       <header><div><h2><Glyph name="transactions" />Transaction</h2><div className="txe-selected-hash"><strong title={hash}>{middle(hash, 10, 8)}</strong><CopyButton value={hash} copied={copied === hash} onCopy={onCopy} size={26} /></div></div><button type="button" className="txe-close" onClick={onClose} aria-label="Close transaction">×</button></header>
       {error ? <div className="txe-empty" role="status">{error}<button type="button" onClick={() => setRetry((value) => value + 1)}>Retry</button></div> : !detail || !tx ? <div className="txe-detail-loading"><Skeleton h={25} w="70%" /><Skeleton h={150} w="100%" /></div> : <>
         <div className="txe-detail-meta"><span title={tx.time ?? undefined}>{tx.time ? <Timestamp value={tx.time} /> : "Time unavailable"}</span>{tx.block_number !== null && <a href={`#/blocks/${tx.block_number}`}>Block #{fmt(tx.block_number)}</a>}{status}{isFinal !== null && <span className={isFinal ? "txe-final" : "txe-warning"}>{isFinal ? `Finalized · ${fmt(tx.confirmations)} confirmations` : "Not yet finalized"}</span>}</div>
-        <div className="txe-detail-tabs" role="tablist" aria-label="Transaction details">{tabs.map(([value, text]) => <button key={value} id={`txe-tab-${value}`} type="button" role="tab" aria-selected={tab === value} aria-controls="txe-detail-content" onClick={() => setTab(value)}>{text}</button>)}</div>
+        {native.length>0&&<div className="txe-message"><h3>Intelligent-contract submissions</h3>{native.map(t=><p key={t.id}><a href={consensusRoute(t.id)}>{middle(t.id,10,6)} · View consensus ↗</a></p>)}</div>}
+      <div className="txe-detail-tabs" role="tablist" aria-label="Transaction details">{tabs.map(([value, text]) => <button key={value} id={`txe-tab-${value}`} type="button" role="tab" aria-selected={tab === value} aria-controls="txe-detail-content" onClick={() => setTab(value)}>{text}</button>)}</div>
         <div className="txe-detail-content" id="txe-detail-content" role="tabpanel" aria-labelledby={`txe-tab-${tab}`}>
           {tab === "overview" && <>
             <dl className="txe-facts">

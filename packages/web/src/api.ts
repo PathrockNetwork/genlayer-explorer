@@ -198,7 +198,7 @@ export type Config = {
 };
 
 
-export type SearchResult = { type: "block" | "tx" | "address"; id: string };
+export type SearchResult = { type: "block" | "tx" | "address" | "contract" | "consensus"; id: string };
 
 /** Parent-chain context from the latest indexed rollup block. */
 export type Anchor = {
@@ -220,8 +220,8 @@ export class ApiError extends Error {
   }
 }
 
-export async function get<T>(path: string): Promise<T> {
-  const r = await fetch(path, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(15_000) });
+export async function get<T>(path: string, timeoutMs = 15_000): Promise<T> {
+  const r = await fetch(path, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(timeoutMs) });
   if (!r.ok) {
     let detail = `${r.status}`;
     try {
