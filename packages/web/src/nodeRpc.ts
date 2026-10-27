@@ -1,6 +1,6 @@
 /**
- * Direct browser → Monad JSON-RPC requests. No explorer server in the middle,
- * so answers are independent of our indexer and API. The public Monad
+ * Direct browser → GenLayer JSON-RPC requests. No explorer server in the middle,
+ * so answers are independent of our indexer and API. The public GenLayer
  * gateways send CORS headers allowing browser POSTs; a custom endpoint that
  * doesn't (or an http endpoint loaded from the https site) is blocked by the
  * browser, which is reported honestly rather than as "down".

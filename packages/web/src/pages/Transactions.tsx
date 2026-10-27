@@ -1,6 +1,6 @@
 import { preferredScrollBehavior } from "../appearance";
 import { Timestamp } from "../components/Timestamp";
-/** Recent Monad transactions, a transaction inspector, and address history. */
+/** Recent GenLayer transactions, a transaction inspector, and address history. */
 import { useEffect, useRef, useState } from "react";
 import type { Dashboard } from "../useDashboard";
 import { fmt, formatUnits, gen, gwei, methodLabel, middle, pct, pts } from "../lib";
@@ -30,7 +30,7 @@ export function Transactions({ d, live }: { d: Dashboard; live: boolean }) {
   const [cursor, setCursor] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [reload, setReload] = useState(0);
-  const [addrTab, setAddrTab] = useState<"transactions" | "transfers" | "internal" | "staking">("transactions");
+  const [addrTab, setAddrTab] = useState<"transactions" | "transfers">("transactions");
   const [info, setInfo] = useState<AddressInfo | null>(null);
   const [infoError, setInfoError] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -158,11 +158,13 @@ export function Transactions({ d, live }: { d: Dashboard; live: boolean }) {
         {address && <section className="txe-card txe-address" aria-label="Address history">
           <div><span>Address{info?.is_contract ? " · contract" : ""}</span><strong title={address}>{address}</strong></div>
           <AddressBadges info={info} />
+          {info && <div className="txe-address-summary"><span>Balance <b>{gen(info.balance, 6)}</b></span><span>Nonce <b>{fmt(info.nonce)}</b></span></div>}
+          {infoError && <span className="txe-warning" role="status">Address summary unavailable</span>}
           <CopyButton value={address} copied={copied === address} onCopy={onCopy} size={26} />
           <a href="#/transactions">Back to all transactions</a>
         </section>}
         <section className="txe-card txe-directory" aria-label={address ? "Address transactions" : "Recent transactions"}>
-          {address && <div className="txe-address-tabs" role="tablist" aria-label="Address history"><button type="button" role="tab" aria-selected={addrTab === "transactions"} onClick={() => setAddrTab("transactions")}>Transactions</button><button type="button" role="tab" aria-selected={addrTab === "transfers"} onClick={() => setAddrTab("transfers")}>Token transfers{info ? ` (${info.transfers.length}${info.transfers.length >= 25 ? "+" : ""})` : ""}</button><button type="button" role="tab" aria-selected={addrTab === "internal"} onClick={() => setAddrTab("internal")}>Internal</button><button type="button" role="tab" aria-selected={addrTab === "staking"} onClick={() => setAddrTab("staking")}>Staking</button></div>}
+          {address && <div className="txe-address-tabs" role="tablist" aria-label="Address history"><button type="button" role="tab" aria-selected={addrTab === "transactions"} onClick={() => setAddrTab("transactions")}>Transactions</button><button type="button" role="tab" aria-selected={addrTab === "transfers"} onClick={() => setAddrTab("transfers")}>Token transfers{info ? ` (${info.transfers.length}${info.transfers.length >= 25 ? "+" : ""})` : ""}</button></div>}
           {address && addrTab === "transfers" ? <TransfersTable transfers={info?.transfers ?? null} address={address} failed={infoError} retainHours={retainHours} onInspect={inspect} /> : <>
           <div className="txe-directory-top">
             <div className="txe-categories" aria-label="Filter by kind">{transactionCategories.map((category) => <button type="button" key={category} aria-pressed={filters.category === category} onClick={() => updateFilter("category", category)}>{category}</button>)}</div>
@@ -187,7 +189,7 @@ export function Transactions({ d, live }: { d: Dashboard; live: boolean }) {
                   {address && <td><DirectionChip dir={direction(tx.from, tx.to, address)} /></td>}
                   <td title={tx.to ?? tx.contract_address ?? undefined}>{tx.to ? <AddressLink value={tx.to} current={address} /> : <span className="txe-create"><em>Create</em>{tx.contract_address && <AddressLink value={tx.contract_address} current={address} />}</span>}</td>
                   <td>{gen(tx.value, 4)}</td>
-                  <td>{tx.fee === "0" ? <span className="txe-zero-fee" title="Zero-gas system call">0 MON</span> : gen(tx.fee, 6)}</td>
+                  <td>{tx.fee === "0" ? <span className="txe-zero-fee" title="Zero-gas system call">0 GEN</span> : gen(tx.fee, 6)}</td>
                   <td title={tx.time}><Timestamp value={tx.time} /></td>
                   <td><Chip tone={tx.status === 1 ? "ok" : "bad"}>{tx.status === 1 ? "Success" : "Failed"}</Chip></td>
                 </tr>)}
@@ -217,6 +219,7 @@ function kindTone(tx: Pick<Tx, "to" | "method" | "input_size">) { return ({ "Con
 function kindGlyph(tx: Pick<Tx, "to" | "method" | "input_size">) { return ({ "Contract calls": "contract", Transfers: "transfer", Creates: "create", Staking: "staking" } as const)[transactionKind(tx)]; }
 function AddressLink({ value, current, head = 8, tail = 4 }: { value: string; current?: string | null; head?: number; tail?: number }) {
   if (value === current) return <span className="txe-self" title={value}>{middle(value, head, tail)}</span>;
+  return <a className="txe-address-link" href={addressRoute(value)} title={value} onClick={event => event.stopPropagation()}>{middle(value, head, tail)}</a>;
 }
 function DirectionChip({ dir }: { dir: Direction }) { return <span className={`txe-direction ${dir}`}>{dir === "in" ? "In" : dir === "out" ? "Out" : "Self"}</span>; }
 function TokenLabel({ t }: { t: Transfer }) {
@@ -307,7 +310,7 @@ function TxDetailPanel({ hash, finalized, copied, onCopy, onClose }: { hash: str
               <Fact label="Max fee · priority fee">{tx.max_fee_per_gas ? `${gwei(tx.max_fee_per_gas)} · ${gwei(tx.max_priority_fee_per_gas)}` : "— (not EIP-1559)"}</Fact>
               <Fact label="Type · nonce · position">{TX_TYPES[tx.type] ?? `Type ${tx.type}`} · {fmt(tx.nonce)} · {tx.tx_index === null ? "—" : `#${tx.tx_index}`}</Fact>
             </dl>
-            <div className="txe-privacy-note public"><Glyph name="fee" /><div><strong>Gas is charged on the gas limit</strong><p>Monad charges for the full gas limit, so the receipt reports gas used equal to the gas limit and the fee is gas limit × gas price.</p></div></div>
+            <div className="txe-privacy-note public"><Glyph name="fee" /><div><strong>Transaction fee</strong><p>The fee is the receipt’s gas used multiplied by its effective gas price, denominated in GEN.</p></div></div>
             {detail.transfers.length > 0 && <section className="txe-message"><h3>Token transfers</h3><TransferList transfers={detail.transfers} /></section>}
           </>}
           {tab === "transfers" && (detail.transfers.length ? <TransferList transfers={detail.transfers} /> : <p className="txe-muted">No ERC-20 or ERC-721 Transfer events were emitted by this transaction.</p>)}

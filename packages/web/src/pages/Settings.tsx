@@ -4,7 +4,7 @@ import type { Dashboard } from "../useDashboard";
 import type { Theme } from "../App";
 import { get, type Endpoint } from "../api";
 import { probeNode, type NodeProbe } from "../nodeRpc";
-import { fmt, monCompact } from "../lib";
+import { fmt } from "../lib";
 import { useAppearance, updateAppearance, type Appearance } from "../appearance";
 import { Timestamp } from "../components/Timestamp";
 import { consoleLink, host, isPublicRpc, PUBLIC_RATE_LIMIT } from "../networkExplorer";
@@ -79,26 +79,15 @@ export function Settings({ d, theme, onTheme }: { d: Dashboard; theme: Theme; on
     ["Name", `${cfg.chain.name} ${cfg.chain.network}`], ["Chain ID", String(cfg.chain.chain_id)],
     ["Currency", `${cfg.chain.currency.symbol} (${cfg.chain.currency.decimals} decimals)`],
     ["Indexed head", cfg.indexer.head],
-    ["Current epoch", d.net?.epoch == null ? null : `${fmt(d.net.epoch)}${d.net.epoch_delay_period ? " · delay period" : ""}`],
-    ["Active validators", d.net ? `${fmt(d.net.validators_active)} of ${fmt(d.net.validators_total)}` : null],
-    ["Total stake", d.net ? monCompact(d.net.total_stake) : null],
-    ["Validator registry", cfg.validator_registry],
   ] : [];
   const firstBlock = d.net?.earliest_indexed ?? null;
   const capabilityCards = cfg ? [
     { name: "Finalized only", icon: "shield", status: "Enabled", tone: "ok", note: "Blocks are indexed once finalized; nothing is reorged out." },
-    { name: "Retention window", icon: "clock", status: `${cfg.indexer.retain_hours} hours`, tone: "ok", note: "Rolling window kept in the database." },
-    { name: "Indexed history", icon: "archive", status: firstBlock ? `From ${fmt(firstBlock)}` : "Unknown", tone: firstBlock ? "ok" : "muted", note: d.net ? `${fmt(d.net.blocks_indexed)} blocks currently indexed.` : "No indexed starting height reported." },
+    { name: "Retention window", icon: "clock", status: cfg.indexer.retain_hours > 0 ? `${cfg.indexer.retain_hours} hours` : "No pruning", tone: "ok", note: "Rolling window kept in the database." },
+    { name: "Indexed history", icon: "archive", status: firstBlock != null ? `From ${fmt(firstBlock)}` : "Unknown", tone: firstBlock != null ? "ok" : "muted", note: d.net ? `${fmt(d.net.blocks_indexed)} blocks currently indexed.` : "No indexed starting height reported." },
     { name: "RPC read-through", icon: "server", status: "Enabled", tone: "ok", note: "Older blocks and transactions are fetched from RPC on demand." },
-    { name: "Analytics horizons", icon: "chart", status: cfg.metric_hours.map(h => `${h}h`).join(" · ") || "—", tone: cfg.metric_hours.length ? "ok" : "muted", note: "Ranges served by /api/v1/metrics." },
-    { name: "Validator metadata", icon: "governance", status: "Registry", tone: "ok", note: "Names and logos from monad-developers/validator-info." },
-    ...(cfg.features ? [
-      { name: "Execution traces", icon: "code", status: cfg.features.trace_every <= 0 ? "Off" : cfg.features.trace_every === 1 ? "Every block" : `Every ${fmt(cfg.features.trace_every)}th block`, tone: cfg.features.trace_every === 1 ? "ok" : cfg.features.trace_every > 0 ? "warn" : "muted", note: "Internal transfers and the parallelism graph. Any single block or transaction is still traced on demand." },
-      { name: "Gas replay", icon: "coins", status: cfg.features.gas_replay ? (cfg.features.trace_every === 1 ? "Every transaction" : "Sampled") : "Off", tone: cfg.features.gas_replay ? (cfg.features.trace_every === 1 ? "ok" : "warn") : "muted", note: "eth_estimateGas on traced blocks: what senders paid for and never used." },
-      { name: "Staking history", icon: "archive", status: cfg.features.staking_history ? `${fmt(cfg.features.staking_logs_range)} blocks / call` : "Live only", tone: cfg.features.staking_history ? (cfg.features.staking_logs_range > 100 ? "ok" : "warn") : "muted", note: "Delegation events are kept forever; older ones are crawled backwards over eth_getLogs." },
-      { name: "Finality stream", icon: "wifi", status: cfg.features.pipeline ? "Live" : "Off", tone: cfg.features.pipeline ? "ok" : "muted", note: "Proposed → Voted → Finalized → Verified for every block, over monadNewHeads." },
-      { name: "Full history", icon: "file", status: cfg.features.full_history ? "Enabled" : "Rolling window", tone: cfg.features.full_history ? "ok" : "muted", note: cfg.features.full_history ? "Nothing is pruned." : "Needs a private RPC and RETAIN_HOURS=0." },
-    ] : []),
+    { name: "Parent-chain context", icon: "chain", status: "Available", tone: "ok", note: "Parent block and send-tree fields reported by indexed rollup blocks." },
+    { name: "Data scope", icon: "file", status: "EVM chain", tone: "ok", note: "Blocks, transactions, receipts and token transfers. Intelligent-contract consensus is a separate layer." },
   ] : [];
   const indexer: { title: string; value: string; note: string; icon: string; extra?: ReactNode }[] = cfg ? [
     { title: "Head tag", value: cfg.indexer.head, note: "Block tag the indexer follows.", icon: "shield" },

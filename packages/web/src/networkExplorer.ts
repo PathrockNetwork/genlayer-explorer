@@ -4,7 +4,7 @@ export const PUBLIC_RPC = PUBLIC_RPCS[0];
 /** Host part of an RPC URL ("rpc.example.com"). */
 export const host = (url: string): string => { try { return new URL(url).host; } catch { return url; } };
 /** True when the URL is one of the public endpoints. */
-export const isPublicRpc = (url: string): boolean => PUBLIC_RPCS.includes(host(url));
+export const isPublicRpc = (url: string): boolean => PUBLIC_RPCS.some((rpc) => host(rpc) === host(url));
 /** Rate limit note for the public gateways (requests/second per IP). */
 export const PUBLIC_RATE_LIMIT = "~50 req/s per IP";
 /** Stable link back to the RPC console for a given endpoint. */

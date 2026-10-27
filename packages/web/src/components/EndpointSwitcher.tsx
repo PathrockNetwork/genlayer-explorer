@@ -1,7 +1,7 @@
 /**
- * Endpoint status — the Secret explorer's switcher, read-only for Monad.
+ * Endpoint status — the Secret explorer's switcher, read-only for GenLayer.
  *
- * The public Monad gateways are not ours to pin: the indexer fails over across
+ * The public GenLayer gateways are not ours to pin: the indexer fails over across
  * them by priority on its own. So the panel reports which one feeds the
  * indexer and how each is doing, and says plainly that it is informational.
  */
@@ -78,7 +78,7 @@ export function EndpointSwitcher({ d }: { d: Dashboard }) {
           <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--line)" }}>
             <div style={{ font: `600 14px/1 ${sans}`, color: TX }}>RPC endpoints</div>
             <div style={{ font: `400 13px/1.45 ${sans}`, color: TX3, marginTop: 4 }}>
-              Public Monad gateways, in priority order. The indexer reads finalized blocks from the
+              Public GenLayer gateways, in priority order. The indexer reads finalized blocks from the
               first healthy one and fails over automatically.
             </div>
           </div>

@@ -292,3 +292,5 @@
   .txe-staking > .txe-table-scroll { margin: 0 -16px; }
   .txe-address-tabs { overflow-x: auto; gap: 18px; padding: 0 16px; }
 }
+
+.txe-address-summary{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--tx3)}.txe-address-summary b{color:var(--tx);font-weight:500;margin-left:5px}

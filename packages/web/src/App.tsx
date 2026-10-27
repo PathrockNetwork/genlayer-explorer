@@ -53,8 +53,8 @@ const TITLES: Record<PageId, string> = {
 };
 
 const SUBTITLES: Record<PageId, string> = {
-  overview: "Live network data for the GenLayer bradbury testnet (chain 4221).",
-  blocks: "Follow finalized blocks, their L1 anchors, gas, and transactions.",
+  overview: "Live network data for the GenLayer Bradbury testnet (chain 4221).",
+  blocks: "Follow finalized blocks, their parent-chain references, gas, and transactions.",
   transactions: "Explore transactions, token transfers, fees, and execution results.",
   endpoints: "Public RPC endpoints — health, height, and latency.",
   rpc: "Query a GenLayer JSON-RPC endpoint directly from your browser.",
@@ -229,7 +229,7 @@ export default function App() {
               }}
             >
               <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
-              <input ref={searchRef} value={search} onChange={(e) => { setSearch(e.target.value); setSearchError(false); }} placeholder="Search blocks, transactions, validators, addresses…" aria-label="Search the network" aria-invalid={searchError} title={searchError ? "No block, transaction or address matches" : undefined} />
+              <input ref={searchRef} value={search} onChange={(e) => { setSearch(e.target.value); setSearchError(false); }} placeholder="Search blocks, transactions, addresses…" aria-label="Search the network" aria-invalid={searchError} title={searchError ? "No block, transaction or address matches" : undefined} />
               <kbd>⌘ K</kbd>
             </form>
             <div className="global-actions" style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
@@ -365,7 +365,7 @@ export default function App() {
           swap for a tailnet-only form if the address ever draws spam. */}
       <a
         className="feedback-button"
-        href="mailto:nwrobj@gmail.com?subject=monad%20explorer%20feedback&body=(what%20looks%20wrong%2C%20on%20which%20page)%3A%20"
+        href="mailto:nwrobj@gmail.com?subject=GenLayer%20explorer%20feedback&body=(what%20looks%20wrong%2C%20on%20which%20page)%3A%20"
         title="Report wrong data or suggest something"
         style={{
           position: "fixed",

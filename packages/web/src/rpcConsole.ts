@@ -1,4 +1,4 @@
-/** Ethereum-compatible JSON-RPC method catalog for the Monad RPC console. */
+/** Ethereum-compatible JSON-RPC method catalog for the GenLayer RPC console. */
 const PUBLIC_RPCS = ["https://genlayer-rpc.pathrocknetwork.org"];
 
 export type ParamKind = "block" | "address" | "hash" | "bool" | "quantity" | "data" | "json" | "uint";
@@ -29,7 +29,7 @@ const tracer: ParamSpec = { key: "tracer", label: "tracer options", kind: "json"
 
 
 export const RPC_METHODS: MethodSpec[] = [
-  { id: "eth_chainId", group: "Chain", method: "eth_chainId", description: "Chain ID as hex (0x107d = 4221 for GenLayer bradbury testnet)", params: [] },
+  { id: "eth_chainId", group: "Chain", method: "eth_chainId", description: "Chain ID as hex (0x107d = 4221 for GenLayer Bradbury testnet)", params: [] },
   { id: "net_version", group: "Chain", method: "net_version", description: "Network ID as a decimal string", params: [] },
   { id: "web3_clientVersion", group: "Chain", method: "web3_clientVersion", description: "Client name and version of the node", params: [] },
   { id: "eth_blockNumber", group: "Chain", method: "eth_blockNumber", description: "Number of the latest block", params: [] },
@@ -55,7 +55,7 @@ export const RPC_METHODS: MethodSpec[] = [
   { id: "debug_traceBlockByNumber", group: "Debug/Trace", method: "debug_traceBlockByNumber", description: "Call traces of every transaction in a block", params: [block("finalized"), tracer], note: "Traces of busy blocks are large." },
 ];
 
-export const RPC_CATEGORIES: Record<string, string[] | null> = { Popular: null, Chain: ["Chain"], Blocks: ["Blocks"], Transactions: ["Transactions"], Accounts: ["Accounts"], Logs: ["Logs"], "Debug/Trace": ["Debug/Trace"], "Monad staking": ["Monad staking"], All: [] };
+export const RPC_CATEGORIES: Record<string, string[] | null> = { Popular: null, Chain: ["Chain"], Blocks: ["Blocks"], Transactions: ["Transactions"], Accounts: ["Accounts"], Logs: ["Logs"], "Debug/Trace": ["Debug/Trace"], All: [] };
 export const findMethod = (id: string | null | undefined) => RPC_METHODS.find(m => m.id === id) ?? null;
 export const methodTitle = (m: MethodSpec) => m.id.startsWith("staking_") ? m.id.slice(8) : m.method;
 
