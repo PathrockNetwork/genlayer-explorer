@@ -7,10 +7,14 @@ export function usePolling<T>(load: () => Promise<T>, live: boolean, interval: n
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [revision, setRevision] = useState(0);
   const attempted = useRef(false);
+  const lastLoad = useRef<(() => Promise<T>) | null>(null);
   const lastRevision = useRef(-1);
   const refresh = useCallback(() => setRevision(n => n + 1), []);
   useEffect(() => {
     let cancelled = false;
+    const changed = lastLoad.current !== load;
+    lastLoad.current = load;
+    if (changed) { setData(null); setError(null); }
     let timer: ReturnType<typeof setTimeout> | undefined;
     const poll = async () => {
       try {
@@ -22,7 +26,7 @@ export function usePolling<T>(load: () => Promise<T>, live: boolean, interval: n
       if (!cancelled) { attempted.current = true; lastRevision.current = revision; }
       if (!cancelled && live) timer = setTimeout(poll, interval);
     };
-    if (live || !attempted.current || lastRevision.current !== revision) void poll();
+    if (live || changed || !attempted.current || lastRevision.current !== revision) void poll();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [load, live, interval, revision]);
   return { data, error, updatedAt, refresh };
