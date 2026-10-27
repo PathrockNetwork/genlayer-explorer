@@ -63,7 +63,7 @@ function EndpointCard({ endpoint: e, origin, samples }: { endpoint: ApiEndpoint;
     const id = ++generation.current;
     setBusy(true); setError("");
     const start = performance.now();
-    const timer = setTimeout(() => abort.abort(), 20000);
+    const timer = setTimeout(() => abort.abort(), e.id === "contract-read" ? 65000 : 20000);
     try {
       const response = await fetch(compiled.path, { headers: { Accept: "application/json" }, signal: abort.signal });
       const type = (response.headers.get("content-type") ?? "").split(";")[0].trim();
