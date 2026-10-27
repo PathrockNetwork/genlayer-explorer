@@ -41,11 +41,12 @@ export function registerNetworkRoutes(
         const client = new JsonRpc([url], 3);
         const started = Date.now();
         try {
-          const [height, version, chain] = await client.batch<string>([
+          const [height, chain] = await client.batch<string>([
             { method: "eth_blockNumber", params: [] },
-            { method: "web3_clientVersion", params: [] },
             { method: "eth_chainId", params: [] },
           ]);
+          // Optional metadata must not make a working chain RPC look offline.
+          const version = await client.call<string>("web3_clientVersion").catch(() => null);
           return {
             url: redactUrl(url),
             healthy: hexToNumber(chain) === 4221,

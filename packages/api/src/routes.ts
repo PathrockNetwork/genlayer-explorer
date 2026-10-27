@@ -82,7 +82,7 @@ function txJson(t: ParsedBlock["txs"][number]) {
 }
 
 /** pg returns bigint/numeric as strings; block numbers fit comfortably in a JS number. */
-const fixBlock = (r: any) => ({ ...r, number: Number(r.number), gas_used: Number(r.gas_used), gas_limit: Number(r.gas_limit) });
+const fixBlock = (r: any) => ({ ...r, number: Number(r.number), gas_used: Number(r.gas_used), gas_limit: Number(r.gas_limit), l1_block_number: r.l1_block_number == null ? null : Number(r.l1_block_number), send_count: r.send_count == null ? null : Number(r.send_count) });
 const fixTx = (r: any) => ({
   ...r,
   block_number: Number(r.block_number),
@@ -111,18 +111,22 @@ export function registerRoutes(app: FastifyInstance, { pool, rpc }: Deps): void 
   const gasPrice = memo(10_000, () => rpc.call<string>("eth_gasPrice").then((h) => BigInt(h).toString()));
 
   const stats = memo(2_000, async () => {
-    const [state, recent, day, window, cadence, tenMin] = await Promise.all([
+    const [state, recent, day, window, cadence, tenMin, history] = await Promise.all([
       q(`select head_number, chain_finalized, backfill_target, active_rpc, updated_at from sync_state where id = 1`),
       q(`select count(*)::int as blocks, coalesce(sum(tx_count), 0)::int as txs,
                 extract(epoch from max(time) - min(time)) as span, max(number) as head
          from (select number, time, tx_count from blocks order by number desc limit 1000) r`),
       q(`select count(*)::int as blocks, coalesce(sum(tx_count), 0)::bigint as txs
          from blocks where time > now() - interval '24 hours'`),
-      q(`select min(number) as earliest, min(time) as earliest_time, count(*)::int as blocks from blocks`),
+      q(`select min(number) as earliest, min(time) as earliest_time, max(time) as latest_time, count(*)::int as blocks from blocks`),
       // Per-minute cadence for the last 30 minutes (the overview sparkline).
       q(`select to_timestamp(floor(extract(epoch from time) / 60) * 60) as t, count(*)::int as blocks, sum(tx_count)::int as txs
          from blocks where time > now() - interval '30 minutes' group by 1 order by 1`),
       q(`select count(*)::int as n from blocks where time > now() - interval '10 minutes'`),
+      q(`select case when s.head_number is null or s.backfill_target is null then null else
+         greatest(0, s.head_number - s.backfill_target + 1 -
+           (select count(*) from blocks where number between s.backfill_target and s.head_number)) end as remaining
+         from sync_state s where id = 1`),
     ]);
     const s = state.rows[0] ?? {};
     const r = recent.rows[0];
@@ -135,10 +139,13 @@ export function registerRoutes(app: FastifyInstance, { pool, rpc }: Deps): void 
       chain_finalized: finalized,
       lag_blocks: head !== null && finalized !== null ? finalized - head : null,
       indexer_updated_at: s.updated_at ?? null,
-      earliest_indexed: window.rows[0]?.earliest ? Number(window.rows[0].earliest) : null,
+      earliest_indexed: window.rows[0]?.earliest != null ? Number(window.rows[0].earliest) : null,
       earliest_indexed_time: window.rows[0]?.earliest_time ?? null,
+      latest_block_time: window.rows[0]?.latest_time ?? null,
+      observed_at: new Date().toISOString(),
+      backfill_remaining: history.rows[0]?.remaining == null ? null : Number(history.rows[0].remaining),
       blocks_indexed: window.rows[0]?.blocks ?? 0,
-      backfill_target: s.backfill_target ? Number(s.backfill_target) : null,
+      backfill_target: s.backfill_target != null ? Number(s.backfill_target) : null,
       avg_block_time_ms: r && r.blocks > 1 && span ? Math.round((span * 1000) / (r.blocks - 1)) : null,
       tps: r && span ? Number((r.txs / span).toFixed(2)) : null,
       blocks_24h: day.rows[0]?.blocks ?? 0,
@@ -156,6 +163,28 @@ export function registerRoutes(app: FastifyInstance, { pool, rpc }: Deps): void 
   });
 
   app.get("/api/v1/stats", async () => stats());
+
+  // l1BlockNumber is the parent height seen by the sequencer. It is not
+  // evidence of batch publication, settlement, or GenLayer consensus finality.
+  const anchor = memo(5_000, async () => {
+    const [latest, coverage] = await Promise.all([
+      q(`select number, time, l1_block_number, send_count, send_root
+         from blocks order by number desc limit 1`),
+      q(`select count(*)::int as window_blocks,
+                count(l1_block_number)::int as blocks_with_l1 from blocks`),
+    ]);
+    const b = latest.rows[0];
+    return {
+      latest_l2_block: b ? Number(b.number) : null,
+      latest_l1_block: b?.l1_block_number == null ? null : Number(b.l1_block_number),
+      latest_time: b?.time ?? null,
+      send_count: b?.send_count == null ? null : Number(b.send_count),
+      send_root: b?.send_root ?? null,
+      window_blocks: coverage.rows[0]?.window_blocks ?? 0,
+      blocks_with_l1: coverage.rows[0]?.blocks_with_l1 ?? 0,
+    };
+  });
+  app.get("/api/v1/anchor", async () => anchor());
 
   /** Transactions and gas per time bucket over the last N hours (from the block table). */
   app.get("/api/v1/series", async (req) => {
@@ -195,7 +224,10 @@ export function registerRoutes(app: FastifyInstance, { pool, rpc }: Deps): void 
         gas_limit: hexToNumber(b.gasLimit),
         base_fee_per_gas: b.baseFeePerGas ? BigInt(b.baseFeePerGas).toString() : null,
         tx_count: b.transactions.length,
-        size: hexToNumber(b.size),
+        size: b.size == null ? null : hexToNumber(b.size),
+        l1_block_number: b.l1BlockNumber == null ? null : hexToNumber(b.l1BlockNumber),
+        send_count: b.sendCount == null ? null : hexToNumber(b.sendCount),
+        send_root: b.sendRoot ?? null,
       })),
     };
   });
@@ -334,10 +366,10 @@ export function registerRoutes(app: FastifyInstance, { pool, rpc }: Deps): void 
     if (isHash(raw)) {
       const h = raw.toLowerCase();
       const { rows } = await q(
-        `select 'tx' as type from transactions where hash = $1 union all select 'block' from blocks where hash = $1 limit 1`,
+        `select 'tx' as type, hash as id from transactions where hash = $1 union all select 'block', number::text as id from blocks where hash = $1 limit 1`,
         [h],
       );
-      if (rows[0]) return { type: rows[0].type, id: h };
+      if (rows[0]) return { type: rows[0].type, id: rows[0].id };
       const [tx, block] = await rpc.batch([
         { method: "eth_getTransactionByHash", params: [h] },
         { method: "eth_getBlockByHash", params: [h, false] },

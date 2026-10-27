@@ -36,11 +36,11 @@ export const blocks = pgTable(
     baseFeePerGas: numeric("base_fee_per_gas"),
     txCount: integer("tx_count").notNull(),
     size: integer("size"),
-    /** The L1 block this L2 block commits to; null when the RPC hid it. */
+    /** Parent block observed by the sequencer; not a settlement proof. */
     l1BlockNumber: bigint("l1_block_number", { mode: "number" }),
-    /** Consensus messages batched into the anchor. */
+    /** Cumulative L2-to-parent message count reported by the rollup. */
     sendCount: integer("send_count"),
-    /** Root committing the batched messages on L1. */
+    /** Rollup send-tree root reported in the block header. */
     sendRoot: text("send_root"),
     ingestedAt: timestamp("ingested_at", { withTimezone: true }).notNull().defaultNow(),
   },
