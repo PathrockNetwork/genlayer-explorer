@@ -33,6 +33,7 @@ import {
 
 import { CAUGHT_UP_BLOCKS, type Ctx } from "./context";
 import { rollupLoop } from "./rollup";
+import { nativeLoop } from "./genlayer";
 
 loadEnv();
 
@@ -277,7 +278,7 @@ async function main(): Promise<void> {
   }, 30_000);
 
   const ctx: Ctx = { db, pool, rpc, log, stopping: () => stopping, head: () => head, finalized: () => finalized };
-  await Promise.all([follow(), backfill(), retention(), resolveTokens(), rollupLoop(ctx)]);
+  await Promise.all([follow(), backfill(), retention(), resolveTokens(), rollupLoop(ctx), nativeLoop(ctx)]);
   clearInterval(progress);
 }
 
