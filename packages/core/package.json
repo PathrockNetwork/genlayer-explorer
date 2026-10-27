@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "drizzle-orm": "^0.36.4",
+    "genlayer-js": "1.1.8",
     "pg": "^8.13.0",
     "viem": "2.21.54"
   },

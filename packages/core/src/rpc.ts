@@ -113,7 +113,8 @@ export class JsonRpc {
     await this.take(calls.length);
     let lastErr: unknown;
     const methods = [...new Set(calls.map((c) => c.method))];
-    for (let attempt = 0; attempt < 4; attempt++) {
+    const execution = methods.some(m => m === "gen_call");
+    for (let attempt = 0; attempt < (execution ? 1 : 4); attempt++) {
       const ep = this.pick(methods, calls.length);
       const started = Date.now();
       try {
@@ -184,7 +185,7 @@ export class JsonRpc {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(calls.some(c => c.method === "gen_call") ? 60_000 : TIMEOUT_MS),
     });
     if (res.status === 429) throw new RpcError(`${redactUrl(url)}: HTTP 429`, 429);
     if (res.status === 413 && calls.length > 1) throw new RpcError(`${redactUrl(url)}: batch of ${calls.length} too large`, 413);
