@@ -11,6 +11,7 @@ import { JsonRpc, createDb, loadEnv, rpcUrlsFromEnv } from "@genlayer-explorer/c
 import { registerGenLayerRoutes } from "./genlayer.js";
 import { registerRoutes } from "./routes.js";
 import { registerNetworkRoutes } from "./network.js";
+import { registerResponseCache, assetCacheControl } from "./responseCache.js";
 
 loadEnv();
 
@@ -32,8 +33,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const webDist = path.join(here, "..", "..", "web", "dist");
 
 /**
- * Security headers and cache policy. API responses are no-store (an explorer
- * showing a stale head is wrong); the SPA gets the standard anti-embedding set.
+ * Security headers and HTTP cache policy. Public API snapshots use a bounded
+ * process cache; browsers and proxies must request them again (no-store).
  */
 fastify.addHook("onSend", async (req, reply, payload) => {
   if (req.url.startsWith("/api/") || req.url === "/health") {
@@ -57,6 +58,7 @@ fastify.setErrorHandler((err: Error & { statusCode?: number }, req, reply) => {
   reply.code(status).send({ error: status === 502 ? "upstream RPC or database unavailable" : err.message });
 });
 
+registerResponseCache(fastify);
 registerRoutes(fastify, { pool, rpc });
 registerNetworkRoutes(fastify, { pool, rpc });
 registerGenLayerRoutes(fastify, { pool, rpc });
@@ -73,7 +75,10 @@ const deployedWeb = (() => {
 fastify.get("/api/v1/version", async () => ({ web: deployedWeb }));
 
 if (existsSync(webDist)) {
-  await fastify.register(fastifyStatic, { root: webDist, prefix: "/" });
+  await fastify.register(fastifyStatic, {
+    root: webDist, prefix: "/", cacheControl: false,
+    setHeaders: (res, file) => { res.setHeader("cache-control", assetCacheControl(file)); },
+  });
   fastify.setNotFoundHandler((req, reply) => {
     if (req.method === "GET" && !req.url.startsWith("/api/") && req.url !== "/health") {
       return reply.sendFile("index.html");
