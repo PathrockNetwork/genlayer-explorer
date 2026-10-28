@@ -14,6 +14,7 @@ import {
   typedValue,
   RpcError,
 } from "@genlayer-explorer/core";
+import { registerObservatoryRoutes } from "./observatory";
 import type { Deps } from "./routes";
 
 const fail = (message: string, statusCode = 400): never => {
@@ -79,6 +80,7 @@ export function registerGenLayerRoutes(
       () => rpc.call("gen_getContractSchema", [{ code: c.encoded }]),
     );
   };
+  registerObservatoryRoutes(app, { pool, rpc });
   let runningReads = 0;
   app.get("/api/v1/genlayer/overview", async () => {
     const [contracts, activity, statuses, top, sync, vm] = await Promise.all([
@@ -86,13 +88,13 @@ export function registerGenLayerRoutes(
         `SELECT count(*)::int total,count(*) FILTER(WHERE kind='intelligent')::int intelligent,count(*) FILTER(WHERE deployed_at>=now()-interval '24 hours')::int new_24h FROM gen_contracts`,
       ),
       pool.query(
-        `SELECT count(*)::int total,count(*) FILTER(WHERE created_at>=now()-interval '24 hours')::int calls_24h,count(DISTINCT recipient) FILTER(WHERE created_at>=now()-interval '24 hours')::int active_24h,count(*) FILTER(WHERE status NOT IN ('Finalized','Canceled','Unknown'))::int in_consensus,count(*) FILTER(WHERE status='Unknown')::int unresolved FROM gen_transactions`,
+        `SELECT count(*)::int total,count(*) FILTER(WHERE created_at>=now()-interval '24 hours')::int calls_24h,count(DISTINCT recipient) FILTER(WHERE created_at>=now()-interval '24 hours')::int active_24h,count(*) FILTER(WHERE status NOT IN ('Finalized','Canceled','Unknown'))::int in_consensus,count(*) FILTER(WHERE status='Unknown')::int unresolved,count(*) FILTER(WHERE execution_result IN ('error','timeout','disagreement','violation') AND created_at>=now()-interval '24 hours')::int failed_24h,count(*) FILTER(WHERE confirmation='provisional')::int provisional FROM gen_transactions WHERE confirmation<>'orphaned'`,
       ),
       pool.query(
-        `SELECT status,count(*)::int count FROM gen_transactions GROUP BY status ORDER BY count DESC`,
+        `SELECT status,count(*)::int count FROM gen_transactions WHERE confirmation<>'orphaned' GROUP BY status ORDER BY count DESC`,
       ),
       pool.query(
-        `SELECT recipient address,count(*)::int calls_24h,count(DISTINCT sender)::int callers_24h FROM gen_transactions WHERE created_at>=now()-interval '24 hours' GROUP BY recipient ORDER BY calls_24h DESC,recipient LIMIT 5`,
+        `SELECT t.recipient address,c.name,count(*)::int calls_24h,count(DISTINCT t.sender)::int callers_24h FROM gen_transactions t LEFT JOIN gen_contracts c ON c.address=t.recipient WHERE t.confirmation<>'orphaned' AND t.created_at>=now()-interval '24 hours' GROUP BY t.recipient,c.name ORDER BY calls_24h DESC,t.recipient LIMIT 5`,
       ),
       pool.query(`SELECT * FROM gen_sync WHERE id=1`),
       rpc
@@ -124,8 +126,7 @@ export function registerGenLayerRoutes(
     };
   }>("/api/v1/contracts", async (req) => {
     const q = (req.query.q ?? "").toLowerCase().trim();
-    if (q && !/^0x[0-9a-f]{0,40}$/.test(q))
-      fail("Search contracts using a 0x address");
+    if (q.length > 100) fail("Search is too long");
     const kind = req.query.kind ?? "all";
     if (!["all", "intelligent", "evm"].includes(kind))
       fail("Invalid contract type");
@@ -133,11 +134,11 @@ export function registerGenLayerRoutes(
     if (!["recent", "activity"].includes(sort)) fail("Invalid sort");
     const limit = Math.max(1, numberOf(req.query.limit, 25, 100)),
       offset = numberOf(req.query.offset, 0, 1000000);
-    const query = `FROM gen_contracts c WHERE ($1='all' OR c.kind=$1) AND ($2='' OR c.address LIKE $2||'%')`;
+    const query = `FROM gen_contracts c WHERE ($1='all' OR c.kind=$1) AND ($2='' OR position($2 in c.address)>0 OR position($2 in lower(coalesce(c.name,'')))>0 OR position($2 in lower(coalesce(c.profile->>'description','')))>0 OR position($2 in lower(coalesce(c.profile->'methods','[]')::text))>0)`;
     const [list, count] = await Promise.all([
       pool.query(
         `SELECT c.*,
-      CASE WHEN c.kind='intelligent' THEN (SELECT count(*)::int FROM gen_transactions t WHERE t.recipient=c.address AND t.created_at>=now()-interval '24 hours') ELSE (SELECT count(*)::int FROM transactions t WHERE t."to"=c.address AND t.time>=now()-interval '24 hours') END calls_24h
+      CASE WHEN c.kind='intelligent' THEN (SELECT count(*)::int FROM gen_transactions t WHERE t.recipient=c.address AND t.confirmation='confirmed' AND t.created_at>=now()-interval '24 hours') ELSE (SELECT count(*)::int FROM transactions t WHERE t."to"=c.address AND t.time>=now()-interval '24 hours') END calls_24h
       ${query} ORDER BY ${sort === "activity" ? "calls_24h DESC," : ""} c.first_seen_block DESC,c.address LIMIT $3 OFFSET $4`,
         [kind, q, limit, offset],
       ),
@@ -159,12 +160,14 @@ export function registerGenLayerRoutes(
       } = await pool.query("SELECT * FROM gen_contracts WHERE address=$1", [
         address,
       ]);
-      let native = false,
-        sourceAvailable = false;
+      let native = indexed?.kind === "intelligent",
+        sourceAvailable = !!indexed?.source_hash;
       try {
-        await code(address);
-        native = true;
-        sourceAvailable = true;
+        if (!native) {
+          await code(address);
+          native = true;
+          sourceAvailable = true;
+        }
       } catch (e) {
         if (!notFound(e)) throw e;
       }
@@ -179,7 +182,7 @@ export function registerGenLayerRoutes(
       const {
         rows: [usage],
       } = await pool.query(
-        `SELECT count(*)::int calls_24h,count(DISTINCT sender)::int callers_24h FROM gen_transactions WHERE recipient=$1 AND created_at>=now()-interval '24 hours'`,
+        `SELECT count(*)::int calls_24h,count(DISTINCT sender)::int callers_24h FROM gen_transactions WHERE recipient=$1 AND confirmation<>'orphaned' AND created_at>=now()-interval '24 hours'`,
         [address],
       );
       const {
@@ -341,6 +344,8 @@ export function registerGenLayerRoutes(
       offset?: string;
       limit?: string;
       submission?: string;
+      execution?: string;
+      confirmation?: string;
     };
   }>("/api/v1/genlayer/transactions", async (req) => {
     const address = req.query.address ? addressOf(req.query.address) : null,
@@ -349,17 +354,35 @@ export function registerGenLayerRoutes(
     if (status.length > 30) fail("Invalid status");
     const limit = Math.max(1, numberOf(req.query.limit, 25, 100)),
       offset = numberOf(req.query.offset, 0, 1000000);
-    const where = `WHERE ($1::text IS NULL OR recipient=$1) AND ($2='' OR status=$2) AND ($3::text IS NULL OR submission_hash=$3)`;
+    const execution = req.query.execution ?? "",
+      confirmation = req.query.confirmation ?? "";
+    if (
+      ![
+        "",
+        "returned",
+        "error",
+        "timeout",
+        "disagreement",
+        "violation",
+        "unknown",
+        "failed",
+      ].includes(execution)
+    )
+      fail("Invalid execution filter");
+    if (!["", "confirmed", "provisional", "orphaned"].includes(confirmation))
+      fail("Invalid confirmation filter");
+    const where = `WHERE ($1::text IS NULL OR t.recipient=$1) AND ($2='' OR t.status=$2) AND ($3::text IS NULL OR t.submission_hash=$3)
+      AND ($4='' OR t.execution_result=$4 OR ($4='failed' AND t.execution_result IN ('error','timeout','disagreement','violation')))
+      AND (($5='' AND t.confirmation<>'orphaned') OR t.confirmation=$5)`;
     const [list, count] = await Promise.all([
       pool.query(
-        `SELECT id,recipient,submission_hash,block_number,sender,created_at,status,kind,method,checked_at,jsonb_array_length(receipt->'roundData') rounds ${"FROM gen_transactions"} ${where} ORDER BY block_number DESC,id LIMIT $4 OFFSET $5`,
-        [address, status, submission, limit, offset],
+        `SELECT t.id,t.recipient,t.submission_hash,t.block_number,t.sender,t.created_at,t.observed_at,t.status,t.kind,t.method,t.checked_at,t.execution_result,t.confirmation,c.name contract_name,jsonb_array_length(t.receipt->'roundData') rounds FROM gen_transactions t LEFT JOIN gen_contracts c ON c.address=t.recipient ${where} ORDER BY t.block_number DESC,t.id LIMIT $6 OFFSET $7`,
+        [address, status, submission, execution, confirmation, limit, offset],
       ),
-      pool.query(`SELECT count(*)::int count FROM gen_transactions ${where}`, [
-        address,
-        status,
-        submission,
-      ]),
+      pool.query(
+        `SELECT count(*)::int count FROM gen_transactions t ${where}`,
+        [address, status, submission, execution, confirmation],
+      ),
     ]);
     return {
       transactions: list.rows.map(row),
@@ -375,7 +398,7 @@ export function registerGenLayerRoutes(
       const {
         rows: [indexed],
       } = await pool.query(
-        "SELECT id,submission_hash,block_number,checked_at,receipt FROM gen_transactions WHERE id=$1",
+        "SELECT id,submission_hash,block_number,checked_at,receipt,confirmation,execution_result FROM gen_transactions WHERE id=$1",
         [id],
       );
       let receipt,
@@ -397,6 +420,8 @@ export function registerGenLayerRoutes(
       return {
         id,
         receipt,
+        confirmation: indexed?.confirmation ?? "unindexed",
+        execution_result: indexed?.execution_result ?? "unknown",
         stale,
         submission_hash: indexed?.submission_hash ?? null,
         block_number: indexed ? Number(indexed.block_number) : null,
@@ -404,11 +429,16 @@ export function registerGenLayerRoutes(
       };
     },
   );
-  app.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string }; Querystring: { round?: string } }>(
     "/api/v1/genlayer/transactions/:id/result",
     async (req) => {
       const result = await rpc.call<any>("gen_getTransactionData", [
-        { txId: idOf(req.params.id) },
+        {
+          txId: idOf(req.params.id),
+          ...(req.query.round === undefined
+            ? {}
+            : { round: numberOf(req.query.round, 0, 255) }),
+        },
       ]);
       return {
         ...result,

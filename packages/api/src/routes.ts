@@ -370,7 +370,7 @@ export function registerRoutes(app: FastifyInstance, { pool, rpc }: Deps): void 
     if (isHash(raw)) {
       const h = raw.toLowerCase();
       const { rows } = await q(
-        `select 'tx' as type, hash as id from transactions where hash = $1 union all select 'block', number::text as id from blocks where hash = $1 union all select 'consensus',id from gen_transactions where id=$1 limit 1`,
+        `select 'tx' as type, hash as id from transactions where hash = $1 union all select 'block', number::text as id from blocks where hash = $1 union all select 'consensus',id from gen_transactions where id=$1 AND confirmation<>'orphaned' limit 1`,
         [h],
       );
       if (rows[0]) return { type: rows[0].type, id: rows[0].id };
@@ -382,6 +382,12 @@ export function registerRoutes(app: FastifyInstance, { pool, rpc }: Deps): void 
       if (block) return { type: "block", id: String(hexToNumber(block.number)) };
       return reply.code(404).send({ error: "no transaction or block with that hash" });
     }
-    return bad(reply, "enter a block number, transaction or block hash, or address");
+    if(raw.length>=2 && raw.length<=100){
+      const matches=await q("SELECT address FROM gen_contracts WHERE position($1 in lower(coalesce(name,'')))>0 OR position($1 in lower(coalesce(profile->>'description','')))>0 OR position($1 in lower(coalesce(profile->'methods','[]')::text))>0 ORDER BY address LIMIT 2",[raw.toLowerCase()]);
+      if(matches.rows.length===1)return {type:"contract",id:matches.rows[0].address};
+      if(matches.rows.length>1)return {type:"contracts",id:raw};
+      return reply.code(404).send({error:"No indexed contract matches that name or method"});
+    }
+    return bad(reply, "Enter a contract name, method, block number, hash, or address");
   });
 }
