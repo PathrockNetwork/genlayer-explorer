@@ -41,6 +41,7 @@ describe("observatory API", () => {
       `/genlayer/validators?q=name`,
       `/genlayer/transactions?execution=success`,
       `/genlayer/transactions?confirmation=anything`,
+      `/genlayer/transactions?days=100`,
       `/contracts/${addr}/sources/not-a-hash`,
       `/genlayer/transactions/${id}/result?round=-1`,
     ])

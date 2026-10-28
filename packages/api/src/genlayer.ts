@@ -15,6 +15,7 @@ import {
   RpcError,
 } from "@genlayer-explorer/core";
 import { registerObservatoryRoutes } from "./observatory";
+import { nativeOverviewActivity } from "./nativeOverview";
 import type { Deps } from "./routes";
 
 const fail = (message: string, statusCode = 400): never => {
@@ -83,18 +84,19 @@ export function registerGenLayerRoutes(
   registerObservatoryRoutes(app, { pool, rpc });
   let runningReads = 0;
   app.get("/api/v1/genlayer/overview", async () => {
+    const until = new Date(),
+      since = new Date(until.getTime() - 86400000);
     const [contracts, activity, statuses, top, sync, vm] = await Promise.all([
       pool.query(
         `SELECT count(*)::int total,count(*) FILTER(WHERE kind='intelligent')::int intelligent,count(*) FILTER(WHERE deployed_at>=now()-interval '24 hours')::int new_24h FROM gen_contracts`,
       ),
-      pool.query(
-        `SELECT count(*)::int total,count(*) FILTER(WHERE created_at>=now()-interval '24 hours')::int calls_24h,count(DISTINCT recipient) FILTER(WHERE created_at>=now()-interval '24 hours')::int active_24h,count(*) FILTER(WHERE status NOT IN ('Finalized','Canceled','Unknown'))::int in_consensus,count(*) FILTER(WHERE status='Unknown')::int unresolved,count(*) FILTER(WHERE execution_result IN ('error','timeout','disagreement','violation') AND created_at>=now()-interval '24 hours')::int failed_24h,count(*) FILTER(WHERE confirmation='provisional')::int provisional FROM gen_transactions WHERE confirmation<>'orphaned'`,
-      ),
+      nativeOverviewActivity(pool, since, until),
       pool.query(
         `SELECT status,count(*)::int count FROM gen_transactions WHERE confirmation<>'orphaned' GROUP BY status ORDER BY count DESC`,
       ),
       pool.query(
-        `SELECT t.recipient address,c.name,count(*)::int calls_24h,count(DISTINCT t.sender)::int callers_24h FROM gen_transactions t LEFT JOIN gen_contracts c ON c.address=t.recipient WHERE t.confirmation<>'orphaned' AND t.created_at>=now()-interval '24 hours' GROUP BY t.recipient,c.name ORDER BY calls_24h DESC,t.recipient LIMIT 5`,
+        `SELECT t.recipient address,c.name,count(*)::int calls_24h,count(DISTINCT t.sender)::int callers_24h FROM gen_transactions t LEFT JOIN gen_contracts c ON c.address=t.recipient WHERE t.confirmation<>'orphaned' AND t.created_at>=$1 AND t.created_at<=$2 GROUP BY t.recipient,c.name ORDER BY calls_24h DESC,t.recipient LIMIT 5`,
+        [since, until],
       ),
       pool.query(`SELECT * FROM gen_sync WHERE id=1`),
       rpc
@@ -108,7 +110,15 @@ export function registerGenLayerRoutes(
     ]);
     return {
       contracts: contracts.rows[0],
-      activity: activity.rows[0],
+      activity: Object.fromEntries(
+        Object.entries(activity).filter(([key]) => key !== "points"),
+      ),
+      series: {
+        since: since.toISOString(),
+        until: until.toISOString(),
+        bucket_secs: 3600,
+        points: activity.points,
+      },
       statuses: statuses.rows,
       top_contracts: top.rows,
       sync: sync.rows[0] ?? null,
@@ -346,6 +356,7 @@ export function registerGenLayerRoutes(
       submission?: string;
       execution?: string;
       confirmation?: string;
+      days?: string;
     };
   }>("/api/v1/genlayer/transactions", async (req) => {
     const address = req.query.address ? addressOf(req.query.address) : null,
@@ -371,17 +382,32 @@ export function registerGenLayerRoutes(
       fail("Invalid execution filter");
     if (!["", "confirmed", "provisional", "orphaned"].includes(confirmation))
       fail("Invalid confirmation filter");
+    const days = req.query.days ?? "";
+    if (!["", "1", "7", "30"].includes(days)) fail("Invalid time window");
+    const until = new Date(),
+      since = days ? new Date(until.getTime() - Number(days) * 86400000) : null;
     const where = `WHERE ($1::text IS NULL OR t.recipient=$1) AND ($2='' OR t.status=$2) AND ($3::text IS NULL OR t.submission_hash=$3)
       AND ($4='' OR t.execution_result=$4 OR ($4='failed' AND t.execution_result IN ('error','timeout','disagreement','violation')))
-      AND (($5='' AND t.confirmation<>'orphaned') OR t.confirmation=$5)`;
+      AND (($5='' AND t.confirmation<>'orphaned') OR t.confirmation=$5)
+      AND ($6::timestamptz IS NULL OR (t.created_at >= $6 AND t.created_at <= $7))`;
     const [list, count] = await Promise.all([
       pool.query(
-        `SELECT t.id,t.recipient,t.submission_hash,t.block_number,t.sender,t.created_at,t.observed_at,t.status,t.kind,t.method,t.checked_at,t.execution_result,t.confirmation,c.name contract_name,jsonb_array_length(t.receipt->'roundData') rounds FROM gen_transactions t LEFT JOIN gen_contracts c ON c.address=t.recipient ${where} ORDER BY t.block_number DESC,t.id LIMIT $6 OFFSET $7`,
-        [address, status, submission, execution, confirmation, limit, offset],
+        `SELECT t.id,t.recipient,t.submission_hash,t.block_number,t.sender,t.created_at,t.observed_at,t.status,t.kind,t.method,t.checked_at,t.execution_result,t.confirmation,c.name contract_name,jsonb_array_length(t.receipt->'roundData') rounds FROM gen_transactions t LEFT JOIN gen_contracts c ON c.address=t.recipient ${where} ORDER BY t.block_number DESC,t.id LIMIT $8 OFFSET $9`,
+        [
+          address,
+          status,
+          submission,
+          execution,
+          confirmation,
+          since,
+          until,
+          limit,
+          offset,
+        ],
       ),
       pool.query(
         `SELECT count(*)::int count FROM gen_transactions t ${where}`,
-        [address, status, submission, execution, confirmation],
+        [address, status, submission, execution, confirmation, since, until],
       ),
     ]);
     return {
