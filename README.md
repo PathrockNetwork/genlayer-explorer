@@ -61,3 +61,14 @@ No watchlists or alerts are included. The dashboard's attention section is an on
 The GenLayer palette and official logo/token SVGs come from https://genlayer.com/brand. Pathrock Network remains the identified explorer operator. New visitors start in light mode; saved theme choices are respected.
 
 The regular test suite covers classifications, source profiles/diffs and API validation. `packages/api/test/observatory.integration.test.ts` runs only when `DATABASE_URL` names `genlayer_features_preview`; it checks reconciliation and analytics against PostgreSQL using rollback-only fixtures. It is intentionally skipped against production.
+
+
+## Loading and caching
+
+The API keeps a bounded process-memory cache for selected public JSON snapshots: native activity and contract detail for 3–5 seconds, directories/attention for 10 seconds, analytics/validators for 15 seconds, and contract profiles/source snapshots for 30 seconds. Identical concurrent requests share work. Cache keys include the full path and sorted query parameters; addresses, filters and pagination stay separate. Failed responses are never retained. The cache is limited to 256 entries / 32 MiB, with at most 1 MiB per entry and 64 tracked in-flight requests. Restarting the API clears it; no cache files or extra service are needed.
+
+API responses retain `Cache-Control: no-store` for browsers and proxies. `X-Explorer-Cache` reports MISS, HIT or COALESCED on eligible requests; `X-Explorer-Cache-Age-Ms` reports snapshot age. Send `Cache-Control: no-cache` to force a new snapshot. Health, version, search and contract method execution bypass this response cache. Existing RPC stats (2 seconds), endpoint probe (15 seconds), source (60 seconds) and content-keyed schema (5 minutes) caches remain separate.
+
+The browser retains at most 48 recently visited page snapshots / 8 MiB in tab memory for 30 seconds. Returning to a page shows the saved data and its original timestamp while requesting an update; a failed update remains visible as an error and invalidates the saved snapshot for future visits. Keys include every address, filter, page and time window. Reloading the tab clears these snapshots.
+
+Content-hashed Vite assets use `public, max-age=31536000, immutable`. HTML and unversioned branding assets use `no-cache` so clients revalidate and discover new releases. The release-version endpoint stays uncached.
