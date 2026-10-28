@@ -198,7 +198,7 @@ export type Config = {
 };
 
 
-export type SearchResult = { type: "block" | "tx" | "address" | "contract" | "consensus"; id: string };
+export type SearchResult = { type: "block" | "tx" | "address" | "contract" | "contracts" | "consensus"; id: string };
 
 /** Parent-chain context from the latest indexed rollup block. */
 export type Anchor = {

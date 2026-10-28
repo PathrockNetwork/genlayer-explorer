@@ -17,6 +17,15 @@ import {
   type NativeTransaction,
 } from "../genlayer";
 import "./intelligence.css";
+import {
+  ContractHealth,
+  ContractProfile,
+  SourceHistory,
+  TransactionExplanation,
+  RoundComparison,
+  Outcome,
+  Confirmation,
+} from "./Observatory";
 
 function useDetail(prefix: string) {
   const read = () =>
@@ -127,7 +136,8 @@ export function NativeTable({ rows }: { rows: NativeTransaction[] }) {
           <tr>
             <th>Consensus ID</th>
             <th>Contract / method</th>
-            <th>Status</th>
+            <th>Execution</th>
+            <th>Consensus / submission</th>
             <th>Rounds</th>
             <th>Submitted</th>
           </tr>
@@ -144,15 +154,29 @@ export function NativeTable({ rows }: { rows: NativeTransaction[] }) {
                 </small>
               </td>
               <td>
-                <Address value={t.recipient} contract />
+                {t.contract_name && (
+                  <a className="obs-name" href={contractRoute(t.recipient)}>
+                    {t.contract_name}
+                  </a>
+                )}
+                <small>
+                  <Address value={t.recipient} contract />
+                </small>
                 <small>{t.method ?? "Method unavailable"}</small>
               </td>
               <td>
+                <Outcome value={t.execution_result} />
+              </td>
+              <td>
                 <Status value={t.status} />
+                <small>
+                  <Confirmation value={t.confirmation} />
+                </small>
               </td>
               <td>{t.rounds ?? "—"}</td>
               <td>
-                <Timestamp value={t.created_at} />
+                <Timestamp value={t.created_at ?? t.observed_at} />
+                {!t.created_at && <small>First observed</small>}
               </td>
             </tr>
           ))}
@@ -218,12 +242,16 @@ export function NativeSummary({
           <small>Including accepted, awaiting finality</small>
         </div>
         <div>
-          <span>GenVM synced block</span>
-          <strong>{s?.genvm ? `#${fmt(s.genvm.synced_block)}` : "—"}</strong>
+          <span>Execution failures · 24 h</span>
+          <strong>
+            <a href="#/consensus?execution=failed">
+              {s ? fmt(s.activity.failed_24h) : "—"}
+            </a>
+          </strong>
           <small>
-            {s?.genvm
-              ? `${fmt(s.genvm.blocks_behind)} blocks behind the chain`
-              : "Node sync data unavailable"}
+            {s
+              ? `${fmt(s.activity.provisional)} provisional submissions`
+              : "Loading outcomes"}
           </small>
         </div>
       </div>
@@ -239,6 +267,21 @@ export function NativeSummary({
           {s.activity.unresolved > 0 &&
             `${fmt(s.activity.unresolved)} receipts awaiting enrichment.`}{" "}
           {s.sync?.last_error}
+          {s.sync?.live_head &&
+            ` Live feed checked through #${fmt(Number(s.sync.live_head))}; unfinalized discovery covers up to 1,000 recent blocks.`}
+          {s.sync?.live_updated_at && (
+            <>
+              {" "}
+              Updated <Timestamp value={s.sync.live_updated_at} />.
+            </>
+          )}
+          {s.sync?.live_error ||
+            (s.sync?.live_updated_at &&
+            Date.now() - Date.parse(s.sync.live_updated_at) > 120000
+              ? " Live discovery is delayed."
+              : "")}
+          {s.genvm &&
+            ` GenVM: #${fmt(s.genvm.synced_block)} (${fmt(s.genvm.blocks_behind)} blocks behind).`}
         </p>
       )}
       {!compact && s && (
@@ -276,7 +319,7 @@ export function NativeSummary({
                 <a key={c.address} href={contractRoute(c.address)}>
                   <span className="int-rank">{i + 1}</span>
                   <span>
-                    <b>{short(c.address)}</b>
+                    <b>{c.name ?? short(c.address)}</b>
                     <small>{fmt(c.callers_24h)} callers</small>
                   </span>
                   <strong>
@@ -308,8 +351,14 @@ export function Contracts({ live }: { live: boolean }) {
 function ContractDirectory({ live }: { live: boolean }) {
   const [kind, setKind] = useState("all"),
     [sort, setSort] = useState("activity"),
-    [query, setQuery] = useState(""),
-    [search, setSearch] = useState(""),
+    [query, setQuery] = useState(
+      () =>
+        new URLSearchParams(window.location.hash.split("?")[1]).get("q") ?? "",
+    ),
+    [search, setSearch] = useState(
+      () =>
+        new URLSearchParams(window.location.hash.split("?")[1]).get("q") ?? "",
+    ),
     [page, setPage] = useState(0);
   const load = useCallback(
     () =>
@@ -319,6 +368,17 @@ function ContractDirectory({ live }: { live: boolean }) {
     [kind, sort, search, page],
   );
   const state = usePolling(load, live, 15000);
+  useEffect(() => {
+    const f = () => {
+      const q =
+        new URLSearchParams(window.location.hash.split("?")[1]).get("q") ?? "";
+      setQuery(q);
+      setSearch(q);
+      setPage(0);
+    };
+    window.addEventListener("hashchange", f);
+    return () => window.removeEventListener("hashchange", f);
+  }, []);
   return (
     <div className="int-page">
       <NativeSummary live={live} compact />
@@ -335,11 +395,11 @@ function ContractDirectory({ live }: { live: boolean }) {
             }}
           >
             <label className="sr-only" htmlFor="contract-search">
-              Contract address
+              Contract name or address
             </label>
             <input
               id="contract-search"
-              placeholder="Search by contract address…"
+              placeholder="Search name, address, method or description…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -396,7 +456,23 @@ function ContractDirectory({ live }: { live: boolean }) {
                   {state.data.contracts.map((c) => (
                     <tr key={c.address}>
                       <td>
-                        <Address value={c.address} contract />
+                        {c.name && (
+                          <a
+                            className="obs-name"
+                            href={contractRoute(c.address)}
+                          >
+                            {c.name}
+                          </a>
+                        )}
+                        <small>
+                          <Address value={c.address} contract />
+                        </small>
+                        {c.profile && (
+                          <small className="obs-description">
+                            {c.profile.description.slice(0, 140)}
+                            {c.profile.description.length > 140 ? "…" : ""}
+                          </small>
+                        )}
                       </td>
                       <td>
                         <span className={`int-kind ${c.kind}`}>
@@ -474,6 +550,7 @@ function ContractDetail({ address, live }: { address: string; live: boolean }) {
           <span className="int-eyebrow">
             {c?.kind === "intelligent" ? "INTELLIGENT CONTRACT" : "CONTRACT"}
           </span>
+          {c?.name && <h2>{c.name}</h2>}
           <h2 className="int-full-address">{address}</h2>
         </div>
         <button
@@ -500,6 +577,9 @@ function ContractDetail({ address, live }: { address: string; live: boolean }) {
           >
             {[
               "overview",
+              ...(c.kind === "intelligent"
+                ? ["health", "profile", "versions"]
+                : []),
               "code",
               ...(c.kind === "intelligent" ? ["methods"] : []),
               "transactions",
@@ -515,6 +595,28 @@ function ContractDetail({ address, live }: { address: string; live: boolean }) {
               </button>
             ))}
           </div>
+          {tab === "health" && <ContractHealth address={address} live={live} />}
+          {tab === "profile" && (
+            <ContractProfile address={address} live={live} />
+          )}
+          {tab === "versions" && (
+            <SourceHistory address={address} live={live} />
+          )}
+          {tab === "overview" && c.profile && (
+            <div className="obs-profile int-panel">
+              <h3>{c.name}</h3>
+              <p>{c.profile.description}</p>
+              <small>
+                Source-derived profile ·{" "}
+                <button
+                  className="int-text-button"
+                  onClick={() => setTab("profile")}
+                >
+                  View capabilities and related deployments
+                </button>
+              </small>
+            </div>
+          )}
           {tab === "overview" && (
             <div className="int-two">
               <Panel title="Contract details">
@@ -600,8 +702,10 @@ function ContractDetail({ address, live }: { address: string; live: boolean }) {
                         >
                           View on-chain source ↗
                         </button>
+                      ) : c.kind === "intelligent" ? (
+                        "Source not available in this state"
                       ) : (
-                        c.kind === "intelligent" ? "Source not available in this state" : "Original EVM source not verified"
+                        "Original EVM source not verified"
                       )}
                     </dd>
                   </div>
@@ -1073,6 +1177,11 @@ export function Consensus({ live }: { live: boolean }) {
 function ConsensusDirectory({ live }: { live: boolean }) {
   const initial = () =>
     new URLSearchParams(window.location.hash.split("?")[1]).get("status") ?? "";
+  const param = (key: string) =>
+    new URLSearchParams(window.location.hash.split("?")[1]).get(key) ?? "";
+  const [execution, setExecution] = useState(() => param("execution")),
+    [confirmation, setConfirmation] = useState(() => param("confirmation")),
+    [address, setAddress] = useState(() => param("address"));
   const [status, setStatus] = useState(initial),
     [page, setPage] = useState(0),
     [id, setId] = useState(""),
@@ -1080,20 +1189,43 @@ function ConsensusDirectory({ live }: { live: boolean }) {
   useEffect(() => {
     const f = () => {
       setStatus(initial());
+      setExecution(param("execution"));
+      setConfirmation(param("confirmation"));
+      setAddress(param("address"));
       setPage(0);
     };
     window.addEventListener("hashchange", f);
     return () => window.removeEventListener("hashchange", f);
   }, []);
   const load = useCallback(
-    () => getNativeTransactions({ status, offset: String(page * 25) }),
-    [status, page],
+    () =>
+      getNativeTransactions({
+        status,
+        execution,
+        confirmation,
+        address,
+        offset: String(page * 25),
+      }),
+    [status, execution, confirmation, address, page],
   );
   const s = usePolling(load, live, 15000);
   return (
     <div className="int-page">
       <NativeSummary live={live} />
       <Panel title="Intelligent-contract transactions">
+        {address && (
+          <p className="int-footnote">
+            Contract: <a href={contractRoute(address)}>{short(address)}</a>{" "}
+            <button
+              onClick={() => {
+                setAddress("");
+                setPage(0);
+              }}
+            >
+              Clear contract filter
+            </button>
+          </p>
+        )}
         <div className="int-toolbar">
           <form
             onSubmit={(e) => {
@@ -1114,7 +1246,8 @@ function ConsensusDirectory({ live }: { live: boolean }) {
           <label>
             Status
             <select
-              aria-label="Consensus status" value={status}
+              aria-label="Consensus status"
+              value={status}
               onChange={(e) => {
                 setStatus(e.target.value);
                 setPage(0);
@@ -1141,6 +1274,44 @@ function ConsensusDirectory({ live }: { live: boolean }) {
                   {statusLabel(x)}
                 </option>
               ))}
+            </select>
+          </label>
+        </div>
+        <div className="int-toolbar">
+          <label>
+            Execution
+            <select
+              aria-label="Execution outcome"
+              value={execution}
+              onChange={(e) => {
+                setExecution(e.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="">All outcomes</option>
+              <option value="returned">Returned</option>
+              <option value="failed">All failures</option>
+              <option value="error">Execution error</option>
+              <option value="timeout">Timeout</option>
+              <option value="disagreement">Disagreement</option>
+              <option value="violation">Violation</option>
+              <option value="unknown">Unavailable</option>
+            </select>
+          </label>
+          <label>
+            Submission
+            <select
+              aria-label="Submission confirmation"
+              value={confirmation}
+              onChange={(e) => {
+                setConfirmation(e.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="">Active submissions</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="provisional">Provisional</option>
+              <option value="orphaned">Orphaned</option>
             </select>
           </label>
         </div>
@@ -1198,6 +1369,12 @@ function ConsensusDetail({ id, live }: { id: string; live: boolean }) {
               <Timestamp value={s.data.checked_at} />.
             </Notice>
           )}
+          <TransactionExplanation
+            id={id}
+            receipt={r}
+            confirmation={s.data.confirmation}
+            live={live}
+          />
           <div className="int-two">
             <Panel title="Execution">
               <dl className="int-facts">
@@ -1266,6 +1443,7 @@ function ConsensusDetail({ id, live }: { id: string; live: boolean }) {
               </p>
             </Panel>
           </div>
+          <RoundComparison id={id} rounds={r.roundData} />
           <Panel
             title="Validator rounds"
             aside={
@@ -1300,7 +1478,12 @@ function ConsensusDetail({ id, live }: { id: string; live: boolean }) {
                         {round.validators.map((v: any) => (
                           <tr key={v.address}>
                             <td>
-                              <Address value={v.address} />
+                              <a
+                                href={`#/validators/${v.address}`}
+                                title={v.address}
+                              >
+                                {short(v.address)}
+                              </a>
                             </td>
                             <td>{v.leader ? "Leader" : "Validator"}</td>
                             <td>{voteLabel(v.vote)}</td>
@@ -1409,6 +1592,104 @@ function ConsensusDetail({ id, live }: { id: string; live: boolean }) {
           </details>
         </>
       )}
+    </div>
+  );
+}
+
+export function NativeDashboard({ live }: { live: boolean }) {
+  const [query, setQuery] = useState("");
+  const feed = usePolling(
+    useCallback(() => getNativeTransactions({ limit: "8" }), []),
+    live,
+    10000,
+  );
+  const attention = usePolling(
+    useCallback(
+      () =>
+        get<{
+          contracts: {
+            address: string;
+            name: string | null;
+            failed: number;
+            waiting: number;
+          }[];
+        }>("/api/v1/genlayer/attention"),
+      [],
+    ),
+    live,
+    30000,
+  );
+  return (
+    <div className="int-section">
+      <form
+        className="obs-search"
+        onSubmit={(e) => {
+          e.preventDefault();
+          window.location.hash = `/contracts?q=${encodeURIComponent(query.trim())}`;
+        }}
+      >
+        <input
+          aria-label="Find an intelligent contract"
+          placeholder="Find a contract by name, address, method or purpose…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <button>Find contract ↗</button>
+      </form>
+      <NativeSummary live={live} compact />
+      <Panel
+        title="Live intelligent-contract activity"
+        aside={<a href="#/consensus">All transactions ↗</a>}
+      >
+        {feed.error && <Notice retry={feed.refresh}>{feed.error}</Notice>}
+        {feed.data ? (
+          <NativeTable rows={feed.data.transactions} />
+        ) : (
+          !feed.error && (
+            <div className="int-empty">Loading native activity…</div>
+          )
+        )}
+        <p className="int-footnote">
+          Provisional submissions can change before their containing block is
+          finalized. Execution result and consensus finality are tracked
+          separately.
+        </p>
+      </Panel>
+      <Panel
+        title="Contracts needing attention"
+        aside={<span>Past 24 hours</span>}
+      >
+        {attention.error && (
+          <Notice retry={attention.refresh}>{attention.error}</Notice>
+        )}
+        <div className="obs-attention">
+          {attention.data?.contracts.map((c) => (
+            <a key={c.address} href={contractRoute(c.address)}>
+              <strong>{c.name ?? short(c.address)}</strong>
+              <span>
+                {c.failed > 0 && (
+                  <b className="int-danger">
+                    {fmt(c.failed)} execution failures
+                  </b>
+                )}
+                {c.waiting > 0 && (
+                  <small>{fmt(c.waiting)} in consensus over 15 min</small>
+                )}
+              </span>
+            </a>
+          ))}
+        </div>
+        {attention.data && !attention.data.contracts.length && (
+          <div className="int-empty">
+            No execution failures or extended consensus activity in the indexed
+            24-hour window.
+          </div>
+        )}
+        <p className="int-footnote">
+          These are observed execution failures or transactions still in
+          consensus after 15 minutes. They are not a security rating.
+        </p>
+      </Panel>
     </div>
   );
 }

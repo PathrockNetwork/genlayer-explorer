@@ -2,6 +2,13 @@ import { get } from "./api";
 export type Contract = {
   address: string;
   kind: "intelligent" | "evm";
+  name?: string | null;
+  profile?: {
+    description: string;
+    tags: string[];
+    methods: { name: string; readonly: boolean }[];
+  } | null;
+  source_hash?: string | null;
   creator: string | null;
   deployment_id: string | null;
   deployment_tx: string | null;
@@ -26,6 +33,10 @@ export type NativeTransaction = {
   method: string | null;
   rounds: number | null;
   checked_at: string | null;
+  execution_result?: string;
+  confirmation?: string;
+  observed_at?: string;
+  contract_name?: string | null;
 };
 export type NativeOverview = {
   contracts: { total: number; intelligent: number; new_24h: number };
@@ -35,10 +46,21 @@ export type NativeOverview = {
     active_24h: number;
     in_consensus: number;
     unresolved: number;
+    failed_24h: number;
+    provisional: number;
   };
   statuses: { status: string; count: number }[];
-  top_contracts: { address: string; calls_24h: number; callers_24h: number }[];
+  top_contracts: {
+    address: string;
+    name?: string | null;
+    calls_24h: number;
+    callers_24h: number;
+  }[];
   sync: {
+    live_head?: string;
+    live_from?: string;
+    live_updated_at?: string;
+    live_error?: string | null;
     head: string;
     history_next: string;
     start_block: string;
@@ -62,7 +84,7 @@ export const getNativeTransactions = (query: Record<string, string> = {}) =>
   );
 export const statusTone = (status: string) =>
   status === "Finalized"
-    ? "success"
+    ? "neutral"
     : status === "Canceled"
       ? "failed"
       : status === "Unknown"

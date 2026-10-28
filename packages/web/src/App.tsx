@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDashboard } from "./useDashboard";
 import { Contracts, Consensus } from "./pages/Intelligence";
+import { Validators } from "./pages/Observatory";
 import { Overview } from "./pages/Overview";
 import { ApiDocs } from "./pages/ApiDocs";
 import { Settings } from "./pages/Settings";
@@ -24,6 +25,7 @@ type PageId =
   | "overview"
   | "contracts"
   | "consensus"
+  | "validators"
   | "blocks"
   | "transactions"
   | "endpoints"
@@ -35,6 +37,7 @@ const NAV: { id: PageId; label: string; d: string }[] = [
   { id: "overview", label: "Overview", d: "M4 4h5v5H4zM11 4h5v3h-5zM4 12h5v4H4zM11 10h5v6h-5z" },
   { id: "contracts", label: "Contracts", d: "M5 3h7l3 3v11H5zM12 3v4h3M8 10h4M8 13h4" },
   { id: "consensus", label: "Consensus", d: "M10 3v4M4 13l6-6 6 6M4 13v4M10 7v10M16 13v4" },
+  { id: "validators", label: "Validators", d: "M10 2 17 5v5c0 4-7 8-7 8S3 14 3 10V5zM7 10l2 2 4-5" },
   { id: "blocks", label: "Blocks", d: "m10 3 6 3.5v7L10 17l-6-3.5v-7zM4 6.5l6 3.5 6-3.5M10 10v7" },
   { id: "transactions", label: "Transactions", d: "M4 7h12m0 0-3-3m3 3-3 3M16 13H4m0 0 3-3m-3 3 3 3" },
   { id: "endpoints", label: "Network", d: "M4 10l6-6M4 10l6 6M4 10h12" },
@@ -51,6 +54,7 @@ const TITLES: Record<PageId, string> = {
   overview: "Network Overview",
   contracts: "Contracts",
   consensus: "Intelligent Contract Consensus",
+  validators: "Validator Activity",
   blocks: "Blocks / Chain history",
   transactions: "Transactions",
   endpoints: "Network",
@@ -63,6 +67,7 @@ const SUBTITLES: Record<PageId, string> = {
   overview: "Live network data for the GenLayer Bradbury testnet (chain 4221).",
   contracts: "Discover intelligent contracts, inspect source code, and explore their activity.",
   consensus: "Follow native transactions, validator rounds, appeals, and execution results.",
+  validators: "Explore observed round assignments, execution votes, and participation history.",
   blocks: "Follow finalized blocks, their parent-chain references, gas, and transactions.",
   transactions: "Explore transactions, token transfers, fees, and execution results.",
   endpoints: "Public RPC endpoints — health, height, and latency.",
@@ -231,7 +236,7 @@ export default function App() {
                 setMobileSearchOpen(false);
                 apiSearch(q)
                   .then((r) => {
-                    window.location.hash = r.type === "block" ? `/blocks/${r.id}` : r.type === "tx" ? `/transactions/${r.id}` : r.type === "contract" ? `/contracts/${r.id}` : r.type === "consensus" ? `/consensus/${r.id}` : `/transactions/address/${r.id}`;
+                    window.location.hash = r.type === "block" ? `/blocks/${r.id}` : r.type === "tx" ? `/transactions/${r.id}` : r.type === "contracts" ? `/contracts?q=${encodeURIComponent(r.id)}` : r.type === "contract" ? `/contracts/${r.id}` : r.type === "consensus" ? `/consensus/${r.id}` : `/transactions/address/${r.id}`;
                     setSearch("");
                   })
                   .catch(() => setSearchError(true));
@@ -338,7 +343,7 @@ export default function App() {
               <h1>{TITLES[page]}</h1>
               <span className="page-subtitle">{SUBTITLES[page]}</span>
             </div>
-            <span className="slogan">Every block, finalized.</span>
+            <span className="slogan">GenLayer Bradbury · Chain 4221</span>
           </div>
 
           {page === "overview" && (
@@ -361,6 +366,7 @@ export default function App() {
           )}
           {page === "contracts" && <Contracts live={live} />}
           {page === "consensus" && <Consensus live={live} />}
+          {page === "validators" && <Validators live={live} />}
           {page === "blocks" && <Blocks d={d} live={live} />}
           {page === "transactions" && <Transactions d={d} live={live} />}
           {page === "endpoints" && <RpcDirectory d={d} />}
