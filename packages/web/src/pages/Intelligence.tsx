@@ -250,7 +250,7 @@ export function NativeSummary({
           </strong>
           <small>
             {s
-              ? `${fmt(s.activity.provisional)} provisional submissions`
+              ? `${fmt(s.activity.calls_24h)} native transactions in this window`
               : "Loading outcomes"}
           </small>
         </div>
@@ -1181,7 +1181,8 @@ function ConsensusDirectory({ live }: { live: boolean }) {
     new URLSearchParams(window.location.hash.split("?")[1]).get(key) ?? "";
   const [execution, setExecution] = useState(() => param("execution")),
     [confirmation, setConfirmation] = useState(() => param("confirmation")),
-    [address, setAddress] = useState(() => param("address"));
+    [address, setAddress] = useState(() => param("address")),
+    [days, setDays] = useState(() => param("days"));
   const [status, setStatus] = useState(initial),
     [page, setPage] = useState(0),
     [id, setId] = useState(""),
@@ -1192,6 +1193,7 @@ function ConsensusDirectory({ live }: { live: boolean }) {
       setExecution(param("execution"));
       setConfirmation(param("confirmation"));
       setAddress(param("address"));
+      setDays(param("days"));
       setPage(0);
     };
     window.addEventListener("hashchange", f);
@@ -1204,15 +1206,29 @@ function ConsensusDirectory({ live }: { live: boolean }) {
         execution,
         confirmation,
         address,
+        days,
         offset: String(page * 25),
       }),
-    [status, execution, confirmation, address, page],
+    [status, execution, confirmation, address, days, page],
   );
   const s = usePolling(load, live, 15000);
   return (
     <div className="int-page">
       <NativeSummary live={live} />
       <Panel title="Intelligent-contract transactions">
+        {days && (
+          <p className="int-footnote">
+            Time window: {days === "1" ? "Past 24 hours" : `Past ${days} days`}{" "}
+            <button
+              onClick={() => {
+                setDays("");
+                setPage(0);
+              }}
+            >
+              Show all history
+            </button>
+          </p>
+        )}
         {address && (
           <p className="int-footnote">
             Contract: <a href={contractRoute(address)}>{short(address)}</a>{" "}
@@ -1592,104 +1608,6 @@ function ConsensusDetail({ id, live }: { id: string; live: boolean }) {
           </details>
         </>
       )}
-    </div>
-  );
-}
-
-export function NativeDashboard({ live }: { live: boolean }) {
-  const [query, setQuery] = useState("");
-  const feed = usePolling(
-    useCallback(() => getNativeTransactions({ limit: "8" }), []),
-    live,
-    10000,
-  );
-  const attention = usePolling(
-    useCallback(
-      () =>
-        get<{
-          contracts: {
-            address: string;
-            name: string | null;
-            failed: number;
-            waiting: number;
-          }[];
-        }>("/api/v1/genlayer/attention"),
-      [],
-    ),
-    live,
-    30000,
-  );
-  return (
-    <div className="int-section">
-      <form
-        className="obs-search"
-        onSubmit={(e) => {
-          e.preventDefault();
-          window.location.hash = `/contracts?q=${encodeURIComponent(query.trim())}`;
-        }}
-      >
-        <input
-          aria-label="Find an intelligent contract"
-          placeholder="Find a contract by name, address, method or purpose…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <button>Find contract ↗</button>
-      </form>
-      <NativeSummary live={live} compact />
-      <Panel
-        title="Live intelligent-contract activity"
-        aside={<a href="#/consensus">All transactions ↗</a>}
-      >
-        {feed.error && <Notice retry={feed.refresh}>{feed.error}</Notice>}
-        {feed.data ? (
-          <NativeTable rows={feed.data.transactions} />
-        ) : (
-          !feed.error && (
-            <div className="int-empty">Loading native activity…</div>
-          )
-        )}
-        <p className="int-footnote">
-          Provisional submissions can change before their containing block is
-          finalized. Execution result and consensus finality are tracked
-          separately.
-        </p>
-      </Panel>
-      <Panel
-        title="Contracts needing attention"
-        aside={<span>Past 24 hours</span>}
-      >
-        {attention.error && (
-          <Notice retry={attention.refresh}>{attention.error}</Notice>
-        )}
-        <div className="obs-attention">
-          {attention.data?.contracts.map((c) => (
-            <a key={c.address} href={contractRoute(c.address)}>
-              <strong>{c.name ?? short(c.address)}</strong>
-              <span>
-                {c.failed > 0 && (
-                  <b className="int-danger">
-                    {fmt(c.failed)} execution failures
-                  </b>
-                )}
-                {c.waiting > 0 && (
-                  <small>{fmt(c.waiting)} in consensus over 15 min</small>
-                )}
-              </span>
-            </a>
-          ))}
-        </div>
-        {attention.data && !attention.data.contracts.length && (
-          <div className="int-empty">
-            No execution failures or extended consensus activity in the indexed
-            24-hour window.
-          </div>
-        )}
-        <p className="int-footnote">
-          These are observed execution failures or transactions still in
-          consensus after 15 minutes. They are not a security rating.
-        </p>
-      </Panel>
     </div>
   );
 }

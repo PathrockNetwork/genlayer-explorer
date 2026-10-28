@@ -47,7 +47,22 @@ export type NativeOverview = {
     in_consensus: number;
     unresolved: number;
     failed_24h: number;
+    returned_24h: number;
+    unknown_24h: number;
+    callers_24h: number;
     provisional: number;
+  };
+  series: {
+    since: string;
+    until: string;
+    bucket_secs: number;
+    points: {
+      t: string;
+      txs: number;
+      returned: number;
+      failed: number;
+      unknown: number;
+    }[];
   };
   statuses: { status: string; count: number }[];
   top_contracts: {

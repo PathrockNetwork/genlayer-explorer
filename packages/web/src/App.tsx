@@ -51,7 +51,7 @@ const NAV: { id: PageId; label: string; d: string }[] = [
 ];
 
 const TITLES: Record<PageId, string> = {
-  overview: "Network Overview",
+  overview: "GenLayer Overview",
   contracts: "Contracts",
   consensus: "Intelligent Contract Consensus",
   validators: "Validator Activity",
@@ -64,7 +64,7 @@ const TITLES: Record<PageId, string> = {
 };
 
 const SUBTITLES: Record<PageId, string> = {
-  overview: "Live network data for the GenLayer Bradbury testnet (chain 4221).",
+  overview: "Intelligent contract activity on the Bradbury testnet.",
   contracts: "Discover intelligent contracts, inspect source code, and explore their activity.",
   consensus: "Follow native transactions, validator rounds, appeals, and execution results.",
   validators: "Explore observed round assignments, execution votes, and participation history.",
