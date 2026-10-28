@@ -5,3 +5,5 @@ export { JsonRpc, RpcError, redactUrl, rpcUrlsFromEnv, type RpcEndpointStatus } 
 export * from "./evm";
 
 export * from "./genlayer";
+
+export * from "./observatory";

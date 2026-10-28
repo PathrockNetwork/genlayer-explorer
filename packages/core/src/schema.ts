@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  bigserial,
+  boolean,
   index,
   doublePrecision,
   integer,
@@ -43,7 +45,9 @@ export const blocks = pgTable(
     sendCount: integer("send_count"),
     /** Rollup send-tree root reported in the block header. */
     sendRoot: text("send_root"),
-    ingestedAt: timestamp("ingested_at", { withTimezone: true }).notNull().defaultNow(),
+    ingestedAt: timestamp("ingested_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => ({
     byTime: index("blocks_time_idx").on(t.time),
@@ -137,7 +141,9 @@ export const tokens = pgTable(
     firstSeenBlock: bigint("first_seen_block", { mode: "number" }).notNull(),
   },
   (t) => ({
-    unresolved: index("tokens_unresolved_idx").on(t.address).where(sql`${t.resolvedAt} is null`),
+    unresolved: index("tokens_unresolved_idx")
+      .on(t.address)
+      .where(sql`${t.resolvedAt} is null`),
   }),
 );
 
@@ -175,22 +181,115 @@ export const syncState = pgTable("sync_state", {
   activeRpc: text("active_rpc"),
   /** Newest block folded into usage_hourly. */
   usageRolledTo: bigint("usage_rolled_to", { mode: "number" }),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /** Native protocol metadata is retained independently of the rolling EVM window. */
 export const genContracts = pgTable("gen_contracts", {
- address: text("address").primaryKey(), kind: text("kind").notNull(), creator: text("creator"),
- deploymentId: text("deployment_id"), deploymentTx: text("deployment_tx"), deploymentBlock: bigint("deployment_block",{mode:"number"}),
- deployedAt: timestamp("deployed_at",{withTimezone:true}), firstSeenBlock: bigint("first_seen_block",{mode:"number"}).notNull(), name: text("name"),
- updatedAt: timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),
+  address: text("address").primaryKey(),
+  kind: text("kind").notNull(),
+  creator: text("creator"),
+  deploymentId: text("deployment_id"),
+  deploymentTx: text("deployment_tx"),
+  deploymentBlock: bigint("deployment_block", { mode: "number" }),
+  deployedAt: timestamp("deployed_at", { withTimezone: true }),
+  firstSeenBlock: bigint("first_seen_block", { mode: "number" }).notNull(),
+  name: text("name"),
+  profile: jsonb("profile"),
+  sourceHash: text("source_hash"),
+  profileCheckedAt: timestamp("profile_checked_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 export const genTransactions = pgTable("gen_transactions", {
- id: text("id").primaryKey(), recipient: text("recipient").notNull(), submissionHash: text("submission_hash").notNull(), blockNumber: bigint("block_number",{mode:"number"}).notNull(),
- sender: text("sender"), createdAt: timestamp("created_at",{withTimezone:true}), status: text("status").notNull().default("Unknown"),kind:text("kind"),method:text("method"),
- receipt:jsonb("receipt"),checkedAt:timestamp("checked_at",{withTimezone:true}),updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),
+  id: text("id").primaryKey(),
+  recipient: text("recipient").notNull(),
+  submissionHash: text("submission_hash").notNull(),
+  blockNumber: bigint("block_number", { mode: "number" }).notNull(),
+  sender: text("sender"),
+  createdAt: timestamp("created_at", { withTimezone: true }),
+  status: text("status").notNull().default("Unknown"),
+  kind: text("kind"),
+  method: text("method"),
+  confirmation: text("confirmation").notNull().default("confirmed"),
+  submissionBlockHash: text("submission_block_hash"),
+  observedAt: timestamp("observed_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  executionResult: text("execution_result").notNull().default("unknown"),
+  analysisVersion: integer("analysis_version").notNull().default(0),
+  receipt: jsonb("receipt"),
+  checkedAt: timestamp("checked_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 export const genSync = pgTable("gen_sync", {
- id:integer("id").primaryKey(),head:bigint("head",{mode:"number"}).notNull(),historyNext:bigint("history_next",{mode:"number"}).notNull(),startBlock:bigint("start_block",{mode:"number"}).notNull(),
- target:bigint("target",{mode:"number"}),updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),lastError:text("last_error"),
+  id: integer("id").primaryKey(),
+  head: bigint("head", { mode: "number" }).notNull(),
+  historyNext: bigint("history_next", { mode: "number" }).notNull(),
+  startBlock: bigint("start_block", { mode: "number" }).notNull(),
+  liveHead: bigint("live_head", { mode: "number" }),
+  liveFrom: bigint("live_from", { mode: "number" }),
+  liveUpdatedAt: timestamp("live_updated_at", { withTimezone: true }),
+  liveError: text("live_error"),
+  target: bigint("target", { mode: "number" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  lastError: text("last_error"),
 });
+
+export const genContractSources = pgTable(
+  "gen_contract_sources",
+  {
+    address: text("address").notNull(),
+    sha256: text("sha256").notNull(),
+    source: text("source").notNull(),
+    profile: jsonb("profile").notNull(),
+    firstObservedAt: timestamp("first_observed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastObservedAt: timestamp("last_observed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    observedBlock: bigint("observed_block", { mode: "number" }),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.address, t.sha256] }) }),
+);
+export const genValidatorVotes = pgTable(
+  "gen_validator_votes",
+  {
+    txId: text("tx_id").notNull(),
+    round: integer("round").notNull(),
+    position: integer("position").notNull(),
+    address: text("address").notNull(),
+    leader: boolean("leader").notNull(),
+    active: boolean("active").notNull().default(true),
+    vote: integer("vote"),
+    resultHash: text("result_hash"),
+    consensusResult: integer("consensus_result"),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.txId, t.round, t.position] }),
+    byAddress: index("gen_validator_votes_address_idx").on(t.address, t.txId),
+  }),
+);
+export const genReceiptObservations = pgTable(
+  "gen_receipt_observations",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    txId: text("tx_id").notNull(),
+    status: text("status").notNull(),
+    executionResult: text("execution_result").notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    byTx: index("gen_receipt_observations_tx_idx").on(t.txId, t.observedAt),
+  }),
+);
