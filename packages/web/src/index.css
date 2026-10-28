@@ -1,67 +1,64 @@
-/**
- * Shared design tokens for the Monad explorer — the Secret explorer's token
- * set with a Monad palette (near-black violet canvas, Monad purple accent).
- * Both themes are declared here; `data-theme` on the app root selects one.
- */
-
-:root {
-  --canvas: #0b0a10;
-  --panel: #121119;
-  --panel2: #1a1824;
-  --line: #2a2738;
-  --line2: #423e57;
-  --tx: #ffffff;
-  --tx2: #c7c3d8;
-  --tx3: #9d98b5;
-  --accent: #6e54f5; /* white text on it: 4.9:1 */
+/** GenLayer official palette. Light status text uses darker accessible tones. */
+:root,
+[data-theme="dark"] {
+  --canvas: #070707;
+  --panel: #111111;
+  --panel2: #191919;
+  --line: #303030;
+  --line2: #606060;
+  --tx: #f5f5f5;
+  --tx2: #cacaca;
+  --tx3: #a6a6a6;
+  --accent: #110fff;
   --onAccent: #ffffff;
-  --brand: #9b8afb;
-  --brand2: #b9adff;
-  --brandSoft: rgba(131, 110, 249, 0.14);
-  --peach: #e6e0ff;
-  /* Kept from the Secret token set for shared components; on Monad these
-     are neutral purple tints (nothing on Monad is sealed). */
-  --sealed: #2c2742;
-  --sealedTx: #d9d2ff;
-  --cipher: rgba(131, 110, 249, 0.06);
-  --ok: #61d6a3;
-  --okSoft: rgba(97, 214, 163, 0.1);
-  --warn: #f2ce71;
-  --warnSoft: rgba(242, 206, 113, 0.12);
-  --bad: #ff8191;
-  --badSoft: rgba(255, 129, 145, 0.12);
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
-  --skel: #201e2a;
-  --grid: #24222f;
+  --brand: #cacaca;
+  --brand2: #ffffff;
+  --brandSoft: rgba(17, 15, 255, 0.14);
+  --chart: #7775ff;
+  --peach: #f5f5f5;
+  --sealed: #303030;
+  --sealedTx: #cacaca;
+  --cipher: rgba(202, 202, 202, 0.04);
+  --ok: #00ff66;
+  --okSoft: rgba(0, 255, 102, 0.08);
+  --warn: #edc46b;
+  --warnSoft: rgba(237, 196, 107, 0.1);
+  --bad: #ff6565;
+  --err: var(--bad);
+  --badSoft: rgba(255, 43, 43, 0.1);
+  --shadow: none;
+  --skel: #242424;
+  --grid: #303030;
 }
-
 [data-theme="light"] {
-  --canvas: #f7f6fb;
+  --canvas: #f5f5f5;
   --panel: #ffffff;
-  --panel2: #f2f0f9;
-  --line: #e2dff0;
-  --line2: #c6c1de;
-  --tx: #110f1a;
-  --tx2: #45405c;
-  --tx3: #6a6582;
-  --accent: #6e54f5;
+  --panel2: #f5f5f5;
+  --line: #dedede;
+  --line2: #cacaca;
+  --tx: #070707;
+  --tx2: #303030;
+  --tx3: #606060;
+  --accent: #110fff;
   --onAccent: #ffffff;
-  --brand: #5b3fe6;
-  --brand2: #4a2fd0;
-  --brandSoft: rgba(110, 84, 245, 0.09);
-  --peach: #ece8ff;
-  --sealed: #e6e1fb;
-  --sealedTx: #4f3aa8;
-  --cipher: rgba(110, 84, 245, 0.045);
-  --ok: #147a4e;
-  --okSoft: rgba(20, 122, 78, 0.09);
-  --warn: #946000;
-  --warnSoft: rgba(148, 96, 0, 0.1);
-  --bad: #bd2646;
-  --badSoft: rgba(189, 38, 70, 0.08);
-  --shadow: 0 2px 8px rgba(30, 20, 60, 0.05);
-  --skel: #ebe8f5;
-  --grid: #ebe8f5;
+  --brand: #110fff;
+  --brand2: #0c0bd1;
+  --brandSoft: rgba(17, 15, 255, 0.06);
+  --chart: #110fff;
+  --peach: #f5f5f5;
+  --sealed: #e6e6e6;
+  --sealedTx: #303030;
+  --cipher: rgba(7, 7, 7, 0.025);
+  --ok: #087a36;
+  --okSoft: rgba(0, 255, 102, 0.08);
+  --warn: #886000;
+  --warnSoft: rgba(237, 196, 107, 0.12);
+  --bad: #c51616;
+  --err: var(--bad);
+  --badSoft: rgba(255, 43, 43, 0.06);
+  --shadow: none;
+  --skel: #e6e6e6;
+  --grid: #dedede;
 }
 
 html {

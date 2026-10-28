@@ -91,8 +91,8 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(() => {
     try {
       const stored = localStorage.getItem("genlayer-explorer-theme");
-      return stored === "dark" || stored === "light" || stored === "system" ? stored : "dark";
-    } catch { return "dark"; }
+      return stored === "dark" || stored === "light" || stored === "system" ? stored : "light";
+    } catch { return "light"; }
   });
   const [systemTheme, setSystemTheme] = useState<"dark" | "light">(() =>
     window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark",
@@ -521,18 +521,7 @@ function Sidebar({
   );
 }
 
-/**
- * Explorer lockup: a generic hexagon mark plus the chain name in the UI
- * typeface — deliberately not the GenLayer Foundation's logo artwork.
- */
+/** Official GenLayer artwork, with Pathrock operator attribution in the surrounding shell. */
 function GenLayerWordmark() {
-  return (
-    <span className="genlayer-wordmark" role="img" aria-label="GenLayer">
-      <svg viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M16 3.5 27 9.75v12.5L16 28.5 5 22.25V9.75z" />
-        <circle cx="16" cy="16" r="4.2" />
-      </svg>
-      <span>GenLayer</span>
-    </span>
-  );
+ return <span className="genlayer-wordmark"><img className="gl-logo-light" src="/brand/genlayer-logo-black.svg" alt="GenLayer"/><img className="gl-logo-dark" src="/brand/genlayer-logo-white.svg" alt="GenLayer"/></span>;
 }

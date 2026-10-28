@@ -94,7 +94,7 @@ function Fee({ value }: { value: string | null }) {
       title={value == null ? "Fee unavailable" : `${value} wei`}
       className="obs-fee"
     >
-      
+      <img src="/brand/gen-token.svg" alt="" />
       {gen(value, 6)}
     </span>
   );
@@ -173,7 +173,7 @@ function Trend({
                   y={139 - h}
                   width={Math.max(1, w - 6)}
                   height={Math.max(2, h)}
-                  fill="var(--chart, var(--brand))"
+                  fill="var(--chart)"
                   opacity={hover === i ? 1 : 0.75}
                   tabIndex={0}
                   role="graphics-symbol"
