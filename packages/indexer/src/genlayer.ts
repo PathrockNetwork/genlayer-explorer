@@ -9,6 +9,12 @@ import {
   JsonRpc,
   rpcUrlsFromEnv,
 } from "@genlayer-explorer/core";
+import {
+  liveNativeTick,
+  persistReceipt,
+  analyzeStoredReceipts,
+  refreshContractProfiles,
+} from "./observatory";
 import { sleep, type Ctx } from "./context";
 
 export async function indexNativeRange(
@@ -16,6 +22,7 @@ export async function indexNativeRange(
   from: number,
   to: number,
   rpc = ctx.rpc,
+  options: { confirmation?: "confirmed" | "provisional"; anchor?: string } = {},
 ) {
   const logs = await rpc.call<any[]>("eth_getLogs", [
     {
@@ -31,18 +38,45 @@ export async function indexNativeRange(
       .filter((x) => x !== null)
       .map((x) => [x.id, x]),
   );
+  const confirmation = options.confirmation ?? "confirmed";
+  if (options.anchor) {
+    const end = await rpc.call<any>("eth_getBlockByNumber", [hex(to), false]);
+    if (end?.hash !== options.anchor)
+      throw new Error("Live chain changed during discovery; retrying");
+  }
   const client = await ctx.pool.connect();
   try {
     await client.query("BEGIN");
+    await client.query(
+      "UPDATE gen_transactions SET confirmation='orphaned',updated_at=now() WHERE block_number BETWEEN $1 AND $2 AND confirmation<>'confirmed' AND NOT(id=ANY($3::text[]))",
+      [from, to, [...found.keys()]],
+    );
     for (const s of found.values()) {
       await client.query(
-        `INSERT INTO gen_transactions (id,recipient,submission_hash,block_number) VALUES ($1,$2,$3,$4) ON CONFLICT (id) DO NOTHING`,
-        [s.id, s.recipient, s.submission_hash, s.block_number],
+        `INSERT INTO gen_transactions (id,recipient,submission_hash,block_number,confirmation,submission_block_hash) VALUES ($1,$2,$3,$4,$5,$6)
+        ON CONFLICT (id) DO UPDATE SET recipient=EXCLUDED.recipient,submission_hash=EXCLUDED.submission_hash,block_number=EXCLUDED.block_number,submission_block_hash=EXCLUDED.submission_block_hash,
+        confirmation=CASE WHEN gen_transactions.confirmation='confirmed' THEN 'confirmed' ELSE EXCLUDED.confirmation END,
+        receipt=CASE WHEN gen_transactions.confirmation='orphaned' OR gen_transactions.submission_hash<>EXCLUDED.submission_hash OR (gen_transactions.submission_block_hash IS NOT NULL AND gen_transactions.submission_block_hash<>EXCLUDED.submission_block_hash) THEN NULL ELSE gen_transactions.receipt END,
+        status=CASE WHEN gen_transactions.confirmation='orphaned' OR gen_transactions.submission_hash<>EXCLUDED.submission_hash OR (gen_transactions.submission_block_hash IS NOT NULL AND gen_transactions.submission_block_hash<>EXCLUDED.submission_block_hash) THEN 'Unknown' ELSE gen_transactions.status END,
+        execution_result=CASE WHEN gen_transactions.confirmation='orphaned' OR gen_transactions.submission_hash<>EXCLUDED.submission_hash OR (gen_transactions.submission_block_hash IS NOT NULL AND gen_transactions.submission_block_hash<>EXCLUDED.submission_block_hash) THEN 'unknown' ELSE gen_transactions.execution_result END,
+        checked_at=CASE WHEN gen_transactions.confirmation='orphaned' OR gen_transactions.submission_hash<>EXCLUDED.submission_hash OR (gen_transactions.submission_block_hash IS NOT NULL AND gen_transactions.submission_block_hash<>EXCLUDED.submission_block_hash) THEN NULL ELSE gen_transactions.checked_at END,
+        analysis_version=CASE WHEN gen_transactions.confirmation='orphaned' OR gen_transactions.submission_hash<>EXCLUDED.submission_hash OR (gen_transactions.submission_block_hash IS NOT NULL AND gen_transactions.submission_block_hash<>EXCLUDED.submission_block_hash) OR gen_transactions.confirmation<>EXCLUDED.confirmation THEN 0 ELSE gen_transactions.analysis_version END
+        WHERE gen_transactions.confirmation<>'confirmed' OR EXCLUDED.confirmation='confirmed'`,
+        [
+          s.id,
+          s.recipient,
+          s.submission_hash,
+          s.block_number,
+          confirmation,
+          logs.find((l: any) => l.topics?.[1]?.toLowerCase() === s.id)
+            ?.blockHash ?? null,
+        ],
       );
-      await client.query(
-        `INSERT INTO gen_contracts(address,kind,first_seen_block) VALUES ($1,'intelligent',$2) ON CONFLICT(address) DO UPDATE SET kind='intelligent', first_seen_block=LEAST(gen_contracts.first_seen_block,EXCLUDED.first_seen_block)`,
-        [s.recipient, s.block_number],
-      );
+      if (confirmation === "confirmed")
+        await client.query(
+          `INSERT INTO gen_contracts(address,kind,first_seen_block) VALUES ($1,'intelligent',$2) ON CONFLICT(address) DO UPDATE SET kind='intelligent', first_seen_block=LEAST(gen_contracts.first_seen_block,EXCLUDED.first_seen_block)`,
+          [s.recipient, s.block_number],
+        );
     }
     await client.query("COMMIT");
   } catch (e) {
@@ -55,7 +89,7 @@ export async function indexNativeRange(
 }
 export async function refreshNativeReceipts(ctx: Ctx, rpc = ctx.rpc) {
   const { rows } = await ctx.pool.query(
-    `SELECT id FROM gen_transactions WHERE status NOT IN ('Finalized','Canceled') AND (checked_at IS NULL OR checked_at < now()-interval '30 seconds') ORDER BY checked_at NULLS FIRST, block_number DESC LIMIT 24`,
+    `SELECT id FROM gen_transactions WHERE confirmation<>'orphaned' AND (status NOT IN ('Finalized','Canceled') OR receipt IS NULL) AND (checked_at IS NULL OR checked_at < now()-interval '30 seconds') ORDER BY checked_at NULLS FIRST, block_number DESC LIMIT 24`,
   );
   let next = 0;
   await Promise.all(
@@ -83,27 +117,7 @@ export async function refreshNativeReceipts(ctx: Ctx, rpc = ctx.rpc) {
           );
           continue;
         }
-        const created =
-          Number(r.timestamps?.Created) > 0
-            ? new Date(Number(r.timestamps.Created) * 1000)
-            : null;
-        await ctx.pool.query(
-          `UPDATE gen_transactions SET sender=$2,created_at=$3,status=$4,kind=$5,method=$6,receipt=$7,checked_at=now(),updated_at=now() WHERE id=$1`,
-          [
-            id,
-            r.sender.toLowerCase(),
-            created,
-            r.statusName,
-            r.input.kind,
-            r.input.method,
-            JSON.stringify(r),
-          ],
-        );
-        if (r.input.kind === "deploy")
-          await ctx.pool.query(
-            `UPDATE gen_contracts c SET creator=$2,deployment_id=$1,deployment_tx=t.submission_hash,deployment_block=t.block_number,deployed_at=$3,updated_at=now() FROM gen_transactions t WHERE t.id=$1 AND c.address=t.recipient AND (c.deployment_block IS NULL OR t.block_number<c.deployment_block)`,
-            [id, r.sender.toLowerCase(), created],
-          );
+        await persistReceipt(ctx, id, r);
       }
     }),
   );
@@ -150,7 +164,33 @@ export async function nativeTick(ctx: Ctx, rpc = ctx.rpc, enrich = true) {
 }
 export async function nativeLoop(ctx: Ctx) {
   const rpc = new JsonRpc(rpcUrlsFromEnv(), 5);
+  const profilesRpc = new JsonRpc(rpcUrlsFromEnv(), 2);
   await Promise.all([
+    (async () => {
+      while (!ctx.stopping()) {
+        try {
+          await liveNativeTick(ctx, rpc);
+        } catch {
+          await ctx.pool
+            .query(
+              "UPDATE gen_sync SET live_error='Live discovery temporarily delayed' WHERE id=1",
+            )
+            .catch(() => {});
+        }
+        await sleep(5000);
+      }
+    })(),
+    (async () => {
+      while (!ctx.stopping()) {
+        try {
+          await analyzeStoredReceipts(ctx);
+          await refreshContractProfiles(ctx, profilesRpc);
+        } catch (e) {
+          ctx.log("contract analytics delayed", { err: (e as Error).message });
+        }
+        await sleep(3000);
+      }
+    })(),
     (async () => {
       while (!ctx.stopping()) {
         try {
