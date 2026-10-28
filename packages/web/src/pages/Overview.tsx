@@ -304,8 +304,8 @@ export function Overview({
   selected?: number | null;
   onSelect?: (n: number) => void;
 }) {
-  const overview = usePolling(loadNativeOverview, live, 15000),
-    recent = usePolling(loadRecent, live, 10000),
+  const overview = usePolling(loadNativeOverview, live, 15000, "native-overview"),
+    recent = usePolling(loadRecent, live, 10000, "overview-recent"),
     s = overview.data,
     net = d.net;
   const [query, setQuery] = useState("");

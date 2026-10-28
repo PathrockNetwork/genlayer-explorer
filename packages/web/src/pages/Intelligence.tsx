@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { get, getTransactions } from "../api";
 import { usePolling } from "../usePolling";
+import { pollingKey } from "../pollingCache";
 import { fmt, gen, short } from "../lib";
 import { Timestamp } from "../components/Timestamp";
 import { addressRoute, txRoute } from "../transactionExplorer";
@@ -196,7 +197,7 @@ export function NativeSummary({
   live: boolean;
   compact?: boolean;
 }) {
-  const state = usePolling(loadNativeOverview, live, 15000),
+  const state = usePolling(loadNativeOverview, live, 15000, "native-overview"),
     s = state.data;
   return (
     <div className="int-section">
@@ -367,7 +368,7 @@ function ContractDirectory({ live }: { live: boolean }) {
       ),
     [kind, sort, search, page],
   );
-  const state = usePolling(load, live, 15000);
+  const state = usePolling(load, live, 15000, pollingKey("contracts", kind, sort, search, page));
   useEffect(() => {
     const f = () => {
       const q =
@@ -538,7 +539,7 @@ function ContractDetail({ address, live }: { address: string; live: boolean }) {
       ),
     [address],
   );
-  const state = usePolling(load, live, 30000),
+  const state = usePolling(load, live, 30000, pollingKey("contract", address)),
     c = state.data?.contract;
   return (
     <div className="int-page">
@@ -767,7 +768,7 @@ function ContractCode({ address }: { address: string }) {
     () => get<any>(`/api/v1/contracts/${address}/code?state=${state}`),
     [address, state],
   );
-  const result = usePolling(load, false, 60000);
+  const result = usePolling(load, false, 60000, pollingKey("code", address, state));
   const c = result.data;
   return (
     <Panel
@@ -854,7 +855,7 @@ function ContractMethods({ address }: { address: string }) {
     () => get<{ schema: any }>(`/api/v1/contracts/${address}/schema`),
     [address],
   );
-  const result = usePolling(load, false, 60000),
+  const result = usePolling(load, false, 60000, pollingKey("schema", address)),
     schema = result.data?.schema;
   return (
     <Panel title="Contract methods" aside={<span>GenVM schema</span>}>
@@ -1021,7 +1022,7 @@ function ContractTransactions({
     () => getNativeTransactions({ address, offset: String(page * 25) }),
     [address, page],
   );
-  const s = usePolling(load, live, 15000);
+  const s = usePolling(load, live, 15000, pollingKey("contract-transactions", address, page));
   return (
     <Panel title="Intelligent-contract transactions">
       {s.error && <Notice retry={s.refresh}>{s.error}</Notice>}
@@ -1044,7 +1045,7 @@ function EvmContractTransactions({
   live: boolean;
 }) {
   const load = useCallback(() => getTransactions(25, { address }), [address]);
-  const s = usePolling(load, live, 15000);
+  const s = usePolling(load, live, 15000, pollingKey("contract-evm", address));
   return (
     <Panel
       title="Latest EVM transactions"
@@ -1094,7 +1095,7 @@ function ContractEvents({ address, live }: { address: string; live: boolean }) {
       ),
     [address, to, status],
   );
-  const s = usePolling(load, live, 15000);
+  const s = usePolling(load, live, 15000, pollingKey("events", address, to, status));
   return (
     <Panel
       title="Intelligent-contract events"
@@ -1211,7 +1212,7 @@ function ConsensusDirectory({ live }: { live: boolean }) {
       }),
     [status, execution, confirmation, address, days, page],
   );
-  const s = usePolling(load, live, 15000);
+  const s = usePolling(load, live, 15000, pollingKey("consensus", status, execution, confirmation, address, days, page));
   return (
     <div className="int-page">
       <NativeSummary live={live} />
@@ -1356,7 +1357,7 @@ function ConsensusDetail({ id, live }: { id: string; live: boolean }) {
     () => get<any>(`/api/v1/genlayer/transactions/${encodeURIComponent(id)}`),
     [id],
   );
-  const s = usePolling(load, live, 15000),
+  const s = usePolling(load, live, 15000, pollingKey("receipt", id)),
     r = s.data?.receipt;
   const [output, setOutput] = useState<any>(null),
     [outputError, setOutputError] = useState(""),

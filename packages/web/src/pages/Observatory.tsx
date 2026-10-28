@@ -7,6 +7,7 @@ import {
 } from "react";
 import { get } from "../api";
 import { usePolling } from "../usePolling";
+import { pollingKey } from "../pollingCache";
 import { fmt, gen, short, duration } from "../lib";
 import {
   consensusRoute,
@@ -239,7 +240,7 @@ export function ContractHealth({
     () => get<any>(`/api/v1/contracts/${address}/analytics?days=${days}`),
     [address, days],
   );
-  const s = usePolling(load, live, 30000),
+  const s = usePolling(load, live, 30000, pollingKey("health", address, days)),
     d = s.data,
     m = d?.summary,
     known = m ? m.returned + m.failed : 0;
@@ -434,7 +435,7 @@ export function ContractProfile({
     () => get<any>(`/api/v1/contracts/${address}/profile`),
     [address],
   );
-  const s = usePolling(load, live, 60000),
+  const s = usePolling(load, live, 60000, pollingKey("profile", address)),
     d = s.data,
     p = d?.contract?.profile;
   return (
@@ -507,7 +508,7 @@ export function SourceHistory({
     () => get<any>(`/api/v1/contracts/${address}/profile`),
     [address],
   );
-  const s = usePolling(load, live, 60000),
+  const s = usePolling(load, live, 60000, pollingKey("profile", address)),
     d = s.data;
   const [before, setBefore] = useState(""),
     [after, setAfter] = useState(""),
@@ -705,7 +706,7 @@ export function TransactionExplanation({
     () => get<any>(`/api/v1/genlayer/transactions/${id}/explanation`),
     [id],
   );
-  const s = usePolling(load, live, 30000),
+  const s = usePolling(load, live, 30000, pollingKey("explanation", id)),
     d = s.data;
   const outcome =
     ["unknown", "returned", "error", "timeout", "disagreement", "violation"][
@@ -938,7 +939,7 @@ function ValidatorView({ address, live }: { address: string; live: boolean }) {
       ),
     [address, days, search, page],
   );
-  const s = usePolling(load, live, 30000),
+  const s = usePolling(load, live, 30000, pollingKey("validators", address, days, search, page)),
     d = s.data,
     total = address ? d?.summary.assignments : d?.total;
   return (
