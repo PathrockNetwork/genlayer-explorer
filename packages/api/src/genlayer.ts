@@ -111,8 +111,13 @@ export function registerGenLayerRoutes(
     return {
       contracts: contracts.rows[0],
       activity: Object.fromEntries(
-        Object.entries(activity).filter(([key]) => key !== "points"),
+        Object.entries(activity).filter(([key]) => key !== "points" && key !== "previous"),
       ),
+      comparison: {
+        since: new Date(since.getTime() - 86400000).toISOString(),
+        until: since.toISOString(),
+        activity: activity.previous,
+      },
       series: {
         since: since.toISOString(),
         until: until.toISOString(),

@@ -47,12 +47,16 @@ describe.skipIf(!enabled)("overview counts and drill-downs", () => {
         returned_24h: 1,
         failed_24h: 1,
         unknown_24h: 1,
+        previous: { calls_24h: 1, active_24h: 1, callers_24h: 1, failed_24h: 0 },
       });
       expect(result.points.reduce((n: number, p: any) => n + p.txs, 0)).toBe(
         result.calls_24h,
       );
-      for (const p of result.points)
+      for (const p of result.points) {
         expect(p.returned + p.failed + p.unknown).toBe(p.txs);
+        expect(p.active).toBe(1);
+        expect(p.callers).toBe(1);
+      }
     } finally {
       await client.query("ROLLBACK");
       client.release();
