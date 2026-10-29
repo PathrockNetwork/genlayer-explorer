@@ -221,11 +221,11 @@ export function formatUnits(value: string | null | undefined, decimals = 18, max
 
 export const gen = (wei: string | null | undefined, maxFraction = 4) => (wei == null ? "—" : `${formatUnits(wei, 18, maxFraction)} GEN`);
 
-/** Compact MON: "2,214,658,182 MON" → "2.21B MON". */
+/** Compact GEN: "2,214,658,182 GEN" → "2.21B GEN". */
 export function monCompact(wei: string | null | undefined): string {
   if (!wei || !/^\d+$/.test(wei)) return "—";
   const v = Number(BigInt(wei) / 10n ** 12n) / 1e6;
-  return `${v.toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 2 })} MON`;
+  return `${v.toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 2 })} GEN`;
 }
 
 /** Gas price in gwei. */

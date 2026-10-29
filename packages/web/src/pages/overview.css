@@ -1,4 +1,4 @@
-/* Monad-specific Overview tweaks (latest-transactions list, dense insight bars). */
+/* GenLayer Overview tweaks (latest-transactions list, dense insight bars). */
 .overview-latest-txs .overview-watchlist-items button { gap: 9px; }
 .overview-latest-txs .overview-watchlist-items button > .olt-hash { flex: none; color: var(--tx); font: 500 13px/1.3 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace; }
 .overview-latest-txs .overview-watchlist-items button > .olt-meta { flex: 1 1 auto; min-width: 0; color: var(--tx3); font-size: 12px; }

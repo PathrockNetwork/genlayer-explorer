@@ -385,7 +385,7 @@ export default function App() {
         </main>
       </div>
 
-      {/* Floating feedback (monadvision reference): the only channel a public
+      {/* Floating feedback: the only channel a public
           visitor has to report wrong data. mailto keeps it zero-infrastructure;
           swap for a tailnet-only form if the address ever draws spam. */}
       <a

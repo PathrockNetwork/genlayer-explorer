@@ -29,7 +29,7 @@ export function filterTransactions(rows: Tx[], filters: TransactionFilters, labe
     (filters.method === "all" || label(tx) === filters.method));
 }
 
-/** Fees in MON for the sparkline; zero-gas system calls are not fees anyone paid. */
+/** Fees in GEN for the sparkline; zero-gas system calls are not fees anyone paid. */
 export function paidFees(rows: Tx[]): bigint[] {
   return rows.flatMap((tx) => (/^\d+$/.test(tx.fee) && tx.fee !== "0" ? [BigInt(tx.fee)] : []));
 }

@@ -182,7 +182,7 @@
   .txe-stat-label { flex-wrap: nowrap; }
   .txe-facts { grid-template-columns: minmax(0, 1fr); }
 }
-/* Monad additions: kinds, direction chips, tokens, address tabs, input data. */
+/* GenLayer additions: kinds, direction chips, tokens, address tabs, input data. */
 .txe-type.create svg { color: var(--tx2); }
 .txe-type.staking svg { color: var(--warn); }
 .txe-table.with-direction { min-width: 1200px; }
