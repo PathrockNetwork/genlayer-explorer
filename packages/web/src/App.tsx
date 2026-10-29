@@ -1,13 +1,13 @@
 /**
  * Shell: sidebar, header, state banner, page routing and footer.
- * Layout is the mockup's fixed 1440px desktop frame.
+ * Shared responsive layout for every explorer route.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDashboard } from "./useDashboard";
 import { Contracts, Consensus } from "./pages/Intelligence";
 import { Validators } from "./pages/Observatory";
 import { Overview } from "./pages/Overview";
-import { ExplorerHorizon, ExplorerIcon, GenLayerWordmark } from "./components/ExplorerBrand";
+import { ExplorerHorizon, GenLayerWordmark } from "./components/ExplorerBrand";
 import { ApiDocs } from "./pages/ApiDocs";
 import { Settings } from "./pages/Settings";
 import { DirectRpc } from "./pages/DirectRpc";
@@ -19,39 +19,9 @@ import { OK, TX, TX2, sans } from "./components/ui";
 import { EndpointSwitcher } from "./components/EndpointSwitcher";
 import { copyText } from "./lib";
 import { useAppearance } from "./appearance";
+import { Sidebar, NAV, type PageId } from "./components/Sidebar";
 
 export type Theme = "dark" | "light" | "system";
-
-type PageId =
-  | "overview"
-  | "contracts"
-  | "consensus"
-  | "validators"
-  | "blocks"
-  | "transactions"
-  | "endpoints"
-  | "rpc"
-  | "api"
-  | "settings"
-
-const NAV: { id: PageId; label: string; d: string }[] = [
-  { id: "overview", label: "Overview", d: "M4 4h5v5H4zM11 4h5v3h-5zM4 12h5v4H4zM11 10h5v6h-5z" },
-  { id: "contracts", label: "Contracts", d: "M5 3h7l3 3v11H5zM12 3v4h3M8 10h4M8 13h4" },
-  { id: "consensus", label: "Consensus", d: "M10 3v4M4 13l6-6 6 6M4 13v4M10 7v10M16 13v4" },
-  { id: "validators", label: "Validators", d: "M10 2 17 5v5c0 4-7 8-7 8S3 14 3 10V5zM7 10l2 2 4-5" },
-  { id: "blocks", label: "Blocks", d: "m10 3 6 3.5v7L10 17l-6-3.5v-7zM4 6.5l6 3.5 6-3.5M10 10v7" },
-  { id: "transactions", label: "Transactions", d: "M4 7h12m0 0-3-3m3 3-3 3M16 13H4m0 0 3-3m-3 3 3 3" },
-  { id: "endpoints", label: "Network", d: "M4 10l6-6M4 10l6 6M4 10h12" },
-  { id: "rpc", label: "RPC Console", d: "M7 4C4.8 9 4.8 11 7 16M13 4c2.2 5 2.2 7 0 12M4 10h12" },
-  { id: "api", label: "API Reference", d: "M7 6l-3 4 3 4M13 6l3 4-3 4" },
-  {
-    id: "settings",
-    label: "Settings",
-    d: "M10 7.6a2.4 2.4 0 100 4.8 2.4 2.4 0 000-4.8zM10 3.2v1.6M10 15.2v1.6M3.2 10h1.6M15.2 10h1.6M5.4 5.4l1.1 1.1M13.5 13.5l1.1 1.1M14.6 5.4l-1.1 1.1M6.5 13.5l-1.1 1.1",
-  },
-];
-
-const NAV_ICONS = { overview: "grid", contracts: "file", consensus: "consensus", validators: "shield", blocks: "block", transactions: "transfer", endpoints: "back", rpc: "rpc", api: "code", settings: "settings" } as const;
 
 const TITLES: Record<PageId, string> = {
   overview: "GenLayer Overview",
@@ -129,6 +99,8 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [searchError, setSearchError] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const closeNavigation = useCallback(() => setMobileNavOpen(false), []);
 
   useEffect(() => {
     try { localStorage.setItem("genlayer-explorer-theme", theme); } catch { /* Theme remains usable without storage. */ }
@@ -145,7 +117,7 @@ export default function App() {
   const appliedTheme = theme === "system" ? systemTheme : theme;
 
   useEffect(() => {
-    const onHash = () => setPage(pageFromLocation());
+    const onHash = () => { setPage(pageFromLocation()); setMobileNavOpen(false); setMobileSearchOpen(false); };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -154,7 +126,9 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        searchRef.current?.focus();
+        setMobileNavOpen(false);
+        if (window.matchMedia("(max-width: 920px)").matches) setMobileSearchOpen(true);
+        requestAnimationFrame(() => searchRef.current?.focus());
       }
     };
     window.addEventListener("keydown", onKey);
@@ -168,15 +142,29 @@ export default function App() {
     if (!mobileNavOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const main = mainRef.current;
+    if (main) main.inert = true;
+    const desktop = window.matchMedia("(min-width: 921px)");
+    const onResize = () => { if (desktop.matches) closeNavigation(); };
+    desktop.addEventListener("change", onResize);
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setMobileNavOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previousOverflow;
+      if (main) main.inert = false;
+      desktop.removeEventListener("change", onResize);
       window.removeEventListener("keydown", onKey);
     };
-  }, [mobileNavOpen]);
+  }, [mobileNavOpen, closeNavigation]);
+
+  useEffect(() => {
+    if (!mobileSearchOpen || mobileNavOpen) return;
+    // Wait until the drawer has restored interaction with the page.
+    const frame = requestAnimationFrame(() => searchRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [mobileSearchOpen, mobileNavOpen]);
 
   useEffect(() => {
     // A route change from a deep link or browser back should never leave the
@@ -214,10 +202,10 @@ export default function App() {
       }}
     >
       <div className="shell">
-        <Sidebar page={page} go={go} d={d} mobileOpen={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />
-        {mobileNavOpen && <button className="mobile-nav-scrim" type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
+        <Sidebar page={page} go={go} mobileOpen={mobileNavOpen} onNavigate={closeNavigation} />
+        {mobileNavOpen && <button className="mobile-nav-scrim" type="button" tabIndex={-1} aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
 
-        <main className={`main-content${page === "overview" ? " overview-content" : ""}`} style={{ flex: 1, minWidth: 0, padding: "0 28px 12px", display: "flex", flexDirection: "column" }}>
+        <main ref={mainRef} className={`main-content${page === "overview" ? " overview-content" : ""}`} style={{ flex: 1, minWidth: 0, padding: "0 28px 12px", display: "flex", flexDirection: "column" }}>
           <header
             className="topbar"
             style={{
@@ -252,10 +240,10 @@ export default function App() {
               <kbd>⌘ K</kbd>
             </form>
             <div className="global-actions" style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
-              <button className="mobile-search-toggle" type="button" aria-label="Search the network" aria-expanded={mobileSearchOpen} onClick={() => setMobileSearchOpen((open) => !open)}>
+              <button className="mobile-search-toggle" type="button" aria-label="Search the network" aria-expanded={mobileSearchOpen} onClick={() => { setMobileSearchOpen((open) => !open); requestAnimationFrame(() => searchRef.current?.focus()); }}>
                 <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
               </button>
-              <button className="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((open) => !open)}>
+              <button className="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-controls="explorer-navigation" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((open) => !open)}>
                 <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 5h14M3 10h14M3 15h14" /></svg>
               </button>
               <EndpointSwitcher d={d} compact />
@@ -357,7 +345,8 @@ export default function App() {
               <button type="button" className={live ? "mobile-live-pill active" : "mobile-live-pill"} onClick={() => setLive((value) => !value)}>
                 <i />{live ? "Live" : "Paused"}
               </button>
-              </div>
+              <a className="mobile-chain-link" href="#/endpoints">Bradbury Testnet · Chain 4221 ↗</a>
+            </div>
           )}
 
           {page === "overview" && (
@@ -445,84 +434,5 @@ export default function App() {
         </button>
       )}
     </div>
-  );
-}
-
-
-function Sidebar({
-  page,
-  go,
-  d,
-  mobileOpen,
-  onNavigate,
-}: {
-  page: PageId;
-  go: (p: PageId) => void;
-  d: ReturnType<typeof useDashboard>;
-  mobileOpen: boolean;
-  onNavigate: () => void;
-}) {
-  return (
-    <aside
-      className={`side${mobileOpen ? " mobile-open" : ""}`}
-      onWheel={(e) => {
-        // The desktop rail is a viewport layer, never a scroll container.
-        // The mobile drawer is allowed to scroll when a short viewport cannot
-        // fit the full navigation and sponsor card.
-        if (!mobileOpen && !(e.target as HTMLElement).closest("nav")) e.preventDefault();
-      }}
-      onTouchMove={(e) => {
-        if (!mobileOpen && !(e.target as HTMLElement).closest("nav")) e.preventDefault();
-      }}
-    >
-      <div className="brand-lockup secret-brand-lockup">
-        <GenLayerWordmark />
-        <span className="secret-explorer-label">EXPLORER</span>
-      </div>
-      <div className="brand-by">by Pathrock Network</div>
-
-      <nav>
-        {NAV.map((n) => {
-          const item = (
-          <a
-            key={n.id}
-            className={page === n.id ? "active" : undefined}
-            href={`#/${n.id}`}
-            onClick={(e) => {
-              e.preventDefault();
-              go(n.id);
-              onNavigate();
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 9,
-              padding: "7px 9px",
-              borderRadius: 7,
-              font: `500 16px/1 ${sans}`,
-              textDecoration: "none",
-              background: page === n.id ? "var(--brandSoft)" : "transparent",
-              color: page === n.id ? "var(--brand)" : TX2,
-            }}
-          >
-            <ExplorerIcon name={NAV_ICONS[n.id]}/>
-            <span>{n.label}</span>
-          </a>
-          );
-          return <div key={n.id}>{n.id === "overview" && <span className="nav-group-label">EXPLORE</span>}{n.id === "contracts" && <span className="nav-group-label">INTELLIGENCE</span>}{n.id === "blocks" && <span className="nav-group-label">CHAIN</span>}{n.id === "rpc" && <span className="nav-group-label">DEVELOPERS</span>}{item}</div>;
-        })}
-      </nav>
-      <a
-        className="pathrock-card"
-        href="https://pathrocknetwork.org/"
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Visit Pathrock Network"
-      >
-        <span className="pathrock-orbit" aria-hidden="true" />
-        <div><strong>PATHROCK<br />NETWORK</strong><small>Open infrastructure for a more decentralized tomorrow.</small></div>
-        <ExplorerIcon name="arrowRight" className="ov-sponsor-arrow"/>
-      </a>
-    </aside>
   );
 }

@@ -11,6 +11,7 @@ import "./appearance.css";
 import "./pages/overview.css";
 import "./pages/genlayer-overview.css";
 import "./theme.css";
+import "./sidebar.css";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
