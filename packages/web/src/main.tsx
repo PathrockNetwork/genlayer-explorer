@@ -9,6 +9,7 @@ import "./readability.css";
 import "./brand.css";
 import "./appearance.css";
 import "./pages/overview.css";
+import "./pages/genlayer-overview.css";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

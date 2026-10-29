@@ -9,3 +9,11 @@ export function activityBuckets(points: { t: string; txs: number }[], bucketSeco
     return { time, txs: counts.get(time) ?? 0 };
   });
 }
+
+/** A zero baseline has no finite percentage change. */
+export function activityChange(current: number, previous: number | undefined) {
+  if (previous == null) return { label: "—", direction: "unknown" };
+  if (previous === 0) return current === 0 ? { label: "0%", direction: "flat" } : { label: "New", direction: "up" };
+  const value = (current - previous) / previous * 100;
+  return { label: `${value > 0 ? "+" : ""}${Number(value.toFixed(1))}%`, direction: value > 0 ? "up" : value < 0 ? "down" : "flat" };
+}

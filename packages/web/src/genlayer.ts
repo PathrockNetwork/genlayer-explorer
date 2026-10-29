@@ -52,6 +52,7 @@ export type NativeOverview = {
     callers_24h: number;
     provisional: number;
   };
+  comparison?: { since: string; until: string; activity: { calls_24h: number; active_24h: number; callers_24h: number; failed_24h: number } };
   series: {
     since: string;
     until: string;
@@ -59,6 +60,8 @@ export type NativeOverview = {
     points: {
       t: string;
       txs: number;
+      active?: number;
+      callers?: number;
       returned: number;
       failed: number;
       unknown: number;

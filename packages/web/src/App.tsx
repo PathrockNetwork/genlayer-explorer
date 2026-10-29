@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useDashboard } from "./useDashboard";
 import { Contracts, Consensus } from "./pages/Intelligence";
 import { Validators } from "./pages/Observatory";
-import { Overview } from "./pages/Overview";
+import { Overview, OverviewHorizon, OverviewIcon } from "./pages/Overview";
 import { ApiDocs } from "./pages/ApiDocs";
 import { Settings } from "./pages/Settings";
 import { DirectRpc } from "./pages/DirectRpc";
@@ -50,6 +50,8 @@ const NAV: { id: PageId; label: string; d: string }[] = [
   },
 ];
 
+const OVERVIEW_NAV_ICONS = { overview: "grid", contracts: "file", consensus: "consensus", validators: "shield", blocks: "block", transactions: "transfer", endpoints: "back", rpc: "rpc", api: "code", settings: "settings" } as const;
+
 const TITLES: Record<PageId, string> = {
   overview: "GenLayer Overview",
   contracts: "Contracts",
@@ -91,14 +93,15 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(() => {
     try {
       const stored = localStorage.getItem("genlayer-explorer-theme");
-      return stored === "dark" || stored === "light" || stored === "system" ? stored : "light";
-    } catch { return "light"; }
+      return stored === "dark" || stored === "light" || stored === "system" ? stored : "dark";
+    } catch { return "dark"; }
   });
   const [systemTheme, setSystemTheme] = useState<"dark" | "light">(() =>
     window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark",
   );
   const [page, setPage] = useState<PageId>(pageFromLocation);
   const [live, setLive] = useState(true);
+  const [overviewRefresh, setOverviewRefresh] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -196,6 +199,7 @@ export default function App() {
 
   return (
     <div
+      className={page === "overview" ? "overview-app" : undefined}
       data-theme={appliedTheme}
       data-density={appearance.density}
       data-reduce-motion={appearance.reduceMotion}
@@ -243,7 +247,7 @@ export default function App() {
               }}
             >
               <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
-              <input ref={searchRef} value={search} onChange={(e) => { setSearch(e.target.value); setSearchError(false); }} placeholder="Search blocks, transactions, contracts…" aria-label="Search the network" aria-invalid={searchError} title={searchError ? "No block, transaction or address matches" : undefined} />
+              <input ref={searchRef} value={search} onChange={(e) => { setSearch(e.target.value); setSearchError(false); }} placeholder="Search blocks, transactions, contracts, addresses…" aria-label="Search the network" aria-invalid={searchError} title={searchError ? "No block, transaction or address matches" : undefined} />
               <kbd>⌘ K</kbd>
             </form>
             <div className="global-actions" style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
@@ -253,7 +257,7 @@ export default function App() {
               <button className="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((open) => !open)}>
                 <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 5h14M3 10h14M3 15h14" /></svg>
               </button>
-              <EndpointSwitcher d={d} />
+              {page === "overview" ? <a className="ov-chain-badge" href="#/endpoints"><i />Bradbury Testnet</a> : <EndpointSwitcher d={d} />}
               <button
                 type="button"
                 onClick={() => setLive((l) => !l)}
@@ -282,6 +286,7 @@ export default function App() {
                 />
                 {live ? "Live" : "Paused"}
               </button>
+              {page === "overview" && <a className="ov-rpc-latency" href="#/endpoints" title="Latest server-side RPC probe latency">{(() => { const endpoint = d.endpoints?.endpoints.find(e => e.used_by_indexer) ?? d.endpoints?.endpoints[0]; return endpoint?.latency_ms == null ? "—" : `${endpoint.latency_ms}ms`; })()}</a>}
               <button
                 type="button"
                 onClick={() => setTheme(appliedTheme === "dark" ? "light" : "dark")}
@@ -309,6 +314,7 @@ export default function App() {
                   />
                 </svg>
               </button>
+              {page === "overview" && <button className="ov-header-refresh" type="button" aria-label="Refresh overview" title="Refresh overview" onClick={() => { setOverviewRefresh(v => v + 1); d.refresh(); }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 6M20 7v5" /></svg></button>}
               <button
                 type="button"
                 onClick={() => onCopy(window.location.href)}
@@ -331,19 +337,20 @@ export default function App() {
                 </svg>
                 {copied === window.location.href ? "Copied" : "Share"}
               </button>
-              <span className="user-avatar" aria-hidden="true">
+              {page === "overview" ? <a className="ov-settings-avatar" href="#/settings" aria-label="Open explorer settings" title="Explorer settings">S</a> : <span className="user-avatar" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="6.5" r="3.5"/><path d="M3.5 17c.5-4 2.7-6 6.5-6s6 2 6.5 6z"/></svg>
-              </span>
+              </span>}
             </div>
           </header>
 
           <div className="page-heading">
+            {page === "overview" && <OverviewHorizon/>}
             <div>
               {page === "rpc" && <div className="direct-rpc-breadcrumb"><span>Home</span><b>›</b><strong>RPC Console</strong></div>}
               <h1>{TITLES[page]}</h1>
               <span className="page-subtitle">{SUBTITLES[page]}</span>
             </div>
-            <span className="slogan">GenLayer Bradbury · Chain 4221</span>
+            <span className="slogan">GenLayer Bradbury · Chain 4221{page === "overview" && <small>Intelligent contracts for a more open web</small>}</span>
           </div>
 
           {page === "overview" && (
@@ -358,6 +365,7 @@ export default function App() {
             <Overview
               d={d}
               live={live}
+              refreshRevision={overviewRefresh}
               selected={selected}
               onSelect={setSelected}
               copied={copied}
@@ -498,9 +506,9 @@ function Sidebar({
               color: page === n.id ? "var(--brand)" : TX2,
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none", opacity: 0.85 }}>
+            {page === "overview" ? <OverviewIcon name={OVERVIEW_NAV_ICONS[n.id]}/> : <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none", opacity: 0.85 }}>
               <path d={n.d} />
-            </svg>
+            </svg>}
             <span>{n.label}</span>
           </a>
           );
@@ -516,6 +524,7 @@ function Sidebar({
       >
         <span className="pathrock-orbit" aria-hidden="true" />
         <div><strong>PATHROCK<br />NETWORK</strong><small>Open infrastructure for a more decentralized tomorrow.</small></div>
+        {page === "overview" && <OverviewIcon name="arrowRight" className="ov-sponsor-arrow"/>}
       </a>
     </aside>
   );

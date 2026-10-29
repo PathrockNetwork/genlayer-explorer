@@ -16,3 +16,14 @@ it("fills missing activity buckets with zero without inventing transactions", ()
   const buckets = activityBuckets([], 900, Date.parse("2026-10-27T12:00:00Z"));
   expect(buckets.every(p => p.txs === 0)).toBe(true);
 });
+
+
+import { activityChange } from "../src/overviewActivity";
+it("compares real periods without inventing percentages for zero or missing baselines", () => {
+  expect(activityChange(120, 100)).toEqual({ label: "+20%", direction: "up" });
+  expect(activityChange(9, 11)).toEqual({ label: "-18.2%", direction: "down" });
+  expect(activityChange(0, 8)).toEqual({ label: "-100%", direction: "down" });
+  expect(activityChange(8, 0)).toEqual({ label: "New", direction: "up" });
+  expect(activityChange(0, 0)).toEqual({ label: "0%", direction: "flat" });
+  expect(activityChange(8, undefined)).toEqual({ label: "—", direction: "unknown" });
+});
