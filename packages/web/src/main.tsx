@@ -10,6 +10,7 @@ import "./brand.css";
 import "./appearance.css";
 import "./pages/overview.css";
 import "./pages/genlayer-overview.css";
+import "./theme.css";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

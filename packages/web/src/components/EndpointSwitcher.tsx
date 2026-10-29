@@ -10,7 +10,7 @@ import type { Dashboard } from "../useDashboard";
 import { BAD, OK, TX, TX2, TX3, mono, sans } from "./ui";
 import { fmt } from "../lib";
 
-export function EndpointSwitcher({ d }: { d: Dashboard }) {
+export function EndpointSwitcher({ d, compact = false }: { d: Dashboard; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -23,11 +23,13 @@ export function EndpointSwitcher({ d }: { d: Dashboard }) {
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  if (endpoints.length === 0) return null;
+  if (endpoints.length === 0) return <a className="ov-chain-badge" href="#/endpoints"><i />Bradbury Testnet</a>;
 
   const dot = active ? (active.healthy ? OK : BAD) : TX3;
 
@@ -35,6 +37,8 @@ export function EndpointSwitcher({ d }: { d: Dashboard }) {
     <div ref={ref} className="endpoint-switcher" style={{ position: "relative", flex: "none" }}>
       <button
         type="button"
+        aria-expanded={open}
+        aria-controls="header-endpoints"
         onClick={() => setOpen((o) => !o)}
         title="RPC endpoint feeding the indexer"
         style={{
@@ -47,21 +51,22 @@ export function EndpointSwitcher({ d }: { d: Dashboard }) {
           border: "1px solid var(--line)",
           background: "var(--panel)",
           color: TX,
-          font: `600 14px/1 ${sans}`,
+          font: `600 ${compact ? 12 : 14}px/1 ${sans}`,
           cursor: "pointer",
         }}
       >
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flex: "none" }} />
-        {active ? host(active.url) : "no endpoint"}
-        <span style={{ font: `400 13px/1 ${mono}`, color: TX3 }}>
+        {compact ? "Bradbury Testnet" : active ? host(active.url) : "no endpoint"}
+        {!compact && <span style={{ font: `400 13px/1 ${mono}`, color: TX3 }}>
           {active?.latency_ms !== null && active?.latency_ms !== undefined
             ? `${active.latency_ms}ms`
             : "—"}
-        </span>
+        </span>}
       </button>
 
       {open && (
         <div
+          id="header-endpoints"
           style={{
             position: "absolute",
             right: 0,
@@ -131,7 +136,7 @@ export function EndpointSwitcher({ d }: { d: Dashboard }) {
           ))}
 
           <div style={{ padding: "9px 12px", font: `400 13px/1.4 ${sans}`, color: TX3 }}>
-            Latency measured from this server. Full details on the Network page.
+            Latency measured from this server. <a href="#/endpoints" onClick={() => setOpen(false)}>View network details →</a>
           </div>
         </div>
       )}
