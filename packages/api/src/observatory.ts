@@ -177,7 +177,7 @@ export function registerObservatoryRoutes(
     },
   );
   const voteStats = `count(*)::int assignments,count(DISTINCT v.tx_id)::int transactions,count(*) FILTER(WHERE v.leader)::int leaderships,count(*) FILTER(WHERE v.vote BETWEEN 1 AND 5)::int recorded_votes,count(*) FILTER(WHERE v.vote=0)::int not_voted,count(*) FILTER(WHERE v.vote IS NULL)::int unavailable,count(*) FILTER(WHERE v.vote=1)::int returned,count(*) FILTER(WHERE v.vote=2)::int errors,count(*) FILTER(WHERE v.vote=3)::int timeouts,count(*) FILTER(WHERE v.vote=4)::int disagreements,count(*) FILTER(WHERE v.vote=5)::int violations`;
-  const voteFrom = `FROM gen_validator_votes v JOIN gen_transactions t ON t.id=v.tx_id WHERE v.active AND t.confirmation='confirmed' AND t.created_at >= $1`;
+  const voteFrom = `FROM gen_validator_votes v JOIN gen_transactions t ON t.id=v.tx_id LEFT JOIN gen_validator_identities i ON i.address=v.address WHERE v.active AND t.confirmation='confirmed' AND t.created_at >= $1`;
   async function coverage() {
     const {
       rows: [x],
@@ -190,15 +190,15 @@ export function registerObservatoryRoutes(
     "/api/v1/genlayer/validators",
     async (req) => {
       const days = daysOf(req.query.days),
-        q = (req.query.q ?? "").trim().toLowerCase(),
+        q = (req.query.q ?? "").trim().normalize("NFC").toLowerCase(),
         offset = offsetOf(req.query.offset);
-      if (q && !/^0x[a-f0-9]{0,40}$/.test(q))
-        fail("Search validators by address");
+      if (Array.from(q).length > 128 || /[\u0000-\u001f\u007f]/.test(q))
+        fail("Use a validator name or address of at most 128 characters");
       const since = new Date(Date.now() - days * 86400000),
-        where = voteFrom + ` AND ($2='' OR v.address LIKE $2||'%')`;
+        where = voteFrom + ` AND ($2='' OR starts_with(v.address,$2) OR strpos(lower(coalesce(i.moniker,'')),$2)>0)`;
       const [list, count, cov] = await Promise.all([
         pool.query(
-          `SELECT v.address,${voteStats},max(t.created_at) last_activity ${where} GROUP BY v.address ORDER BY assignments DESC,v.address LIMIT 25 OFFSET $3`,
+          `SELECT v.address,i.moniker,i.fetched_at moniker_updated_at,coalesce(i.last_error IS NOT NULL OR i.fetched_at<now()-interval '2 hours',false) moniker_stale,${voteStats},max(t.created_at) last_activity ${where} GROUP BY v.address,i.moniker,i.fetched_at,i.last_error ORDER BY assignments DESC,v.address LIMIT 25 OFFSET $3`,
           [since, q, offset],
         ),
         pool.query(`SELECT count(DISTINCT v.address)::int total ${where}`, [
@@ -226,7 +226,7 @@ export function registerObservatoryRoutes(
       since = new Date(Date.now() - days * 86400000);
     const args = [since, addr],
       where = voteFrom + " AND v.address=$2";
-    const [summary, series, rows, cov] = await Promise.all([
+    const [summary, series, rows, cov, identity] = await Promise.all([
       pool.query(`SELECT ${voteStats} ${where}`, args),
       pool.query(
         `SELECT date_trunc('day',t.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' time,count(*)::int assignments,count(*) FILTER(WHERE v.vote BETWEEN 1 AND 5)::int recorded_votes ${where} GROUP BY 1 ORDER BY 1`,
@@ -237,6 +237,7 @@ export function registerObservatoryRoutes(
         [...args, offset],
       ),
       coverage(),
+      pool.query("SELECT address,moniker,fetched_at,checked_at,last_error FROM gen_validator_identities WHERE address=$1", [addr]),
     ]);
     return {
       address: addr,
@@ -244,6 +245,7 @@ export function registerObservatoryRoutes(
       summary: summary.rows[0],
       series: series.rows,
       history: rows.rows,
+      identity: identity.rows[0] ?? null,
       coverage: cov,
     };
   });
