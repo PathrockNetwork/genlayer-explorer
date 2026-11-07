@@ -1,5 +1,5 @@
-/* One scrollable rail across every route. On mobile it becomes a modal drawer. */
-.explorer-app { --sidebar-width: 184px; }
+/* A compact navigation stack; short screens scroll and mobile keeps touch-sized rows. */
+.explorer-app { --sidebar-width: 176px; }
 .explorer-app .side {
   display: flex; flex-direction: column; gap: 0;
   height: 100dvh; max-height: 100dvh; overflow-x: hidden; overflow-y: auto;
@@ -7,61 +7,53 @@
   scrollbar-color: var(--line2) transparent;
 }
 .explorer-app .side > * { flex-shrink: 0; }
-.explorer-app .side nav { display: flex; flex-direction: column; flex: none; overflow: visible; margin-top: 0; gap: 3px; }
+.explorer-app .side nav { display: flex; flex-direction: column; flex: none; overflow: visible; margin: 0; gap: 1px; }
 .explorer-app .side nav a {
-  display: flex; align-items: center; gap: 12px !important; min-height: 44px;
-  padding: 11px 12px !important; border: 1px solid transparent; border-radius: 8px;
+  display: flex; align-items: center; gap: 10px !important; min-height: 44px;
+  padding: 10px 11px !important; border: 1px solid transparent; border-radius: 6px !important;
   font: 500 14px/1.3 'Inter Variable',sans-serif; text-decoration: none; color: var(--tx2); white-space: nowrap;
 }
-.explorer-app .side nav a:hover { background: var(--panel2); color: var(--tx); }
+.explorer-app .side nav a:hover { background: var(--panel2); color: var(--tx); transform: none; }
 .explorer-app .side nav a.active {
   color: #fff; background: linear-gradient(120deg,#0755ff,#1033ff) !important;
   border-color: #2862ed; box-shadow: inset 0 1px 0 #ffffff14;
 }
-.explorer-app .side nav a svg { width: 20px; height: 20px; flex: none; opacity: 1; }
+.explorer-app .side nav a svg { width: 19px; height: 19px; flex: none; opacity: 1; }
 .explorer-app .nav-group-label {
-  display: block; text-transform: uppercase; font-size: 10px; letter-spacing: .09em;
-  padding: 14px 0 9px; margin: 5px 8px 0; border-top: 1px solid var(--line); color: var(--tx3);
+  display: block; text-transform: uppercase; font-size: 9px; letter-spacing: .09em;
+  padding: 10px 0 6px; margin: 8px 9px 0; border-top: 1px solid var(--line); color: var(--tx3);
 }
-.explorer-app .side nav > div:first-child .nav-group-label { padding-top: 8px; margin-top: 0; border: 0; }
-.explorer-app .side .pathrock-card { margin-top: auto; flex-shrink: 0; min-height: 110px; padding: 15px 12px; gap: 10px; }
-.explorer-app .side nav { margin-bottom: 18px; }
-.explorer-app .side .pathrock-card .ov-sponsor-arrow { bottom: 12px; right: 10px; width: 15px; height: 15px; }
+.explorer-app .side nav > div:first-child .nav-group-label { padding-top: 0; margin-top: 0; border: 0; }
+.explorer-app .side .pathrock-card {
+  display: flex; align-items: center; position: relative; flex-shrink: 0;
+  margin: 18px 0 0; min-height: 58px; padding: 10px 9px; gap: 8px;
+  border-radius: 6px; box-shadow: none;
+}
+.explorer-app .side .pathrock-orbit { width: 24px; height: 24px; }
+.explorer-app .side .pathrock-card strong { display: block; font-size: 9px; line-height: 1.5; letter-spacing: .09em; }
+.explorer-app .side .pathrock-card small { display: none; }
+.explorer-app .side .pathrock-card .ov-sponsor-arrow { position: static; flex: none; margin-left: auto; width: 13px; height: 13px; }
 .explorer-app .sidebar-close { display: none; }
 @media (min-width: 921px) {
   .explorer-app .shell { padding-left: var(--sidebar-width); }
-  .explorer-app .side { width: var(--sidebar-width); padding: 22px 10px 16px; }
-  .explorer-app .side .genlayer-wordmark img { width: 124px; }
-  .explorer-app .brand-by { padding-bottom: 10px; font-size: 10px; }
-  .explorer-app .side nav { gap: 2px; margin-bottom: 14px; }
-  .explorer-app .side nav a { min-height: 38px; padding: 8px 10px !important; gap: 9px !important; border-radius: 6px !important; font-size: 13px !important; }
-  .explorer-app .side nav a svg { width: 17px; height: 17px; }
-  .explorer-app .nav-group-label { font-size: 9px; padding: 12px 0 8px; margin: 4px 8px 0; }
-  .explorer-app .side .pathrock-card { min-height: 98px; padding: 12px 10px; gap: 8px; }
-  .explorer-app .pathrock-orbit { width: 28px; height: 28px; }
-  .explorer-app .pathrock-card strong { font-size: 10px; }
-  .explorer-app .pathrock-card small { font-size: 10px; }
-}
-@media (min-width: 921px) and (max-height: 950px) {
-  .explorer-app .side { padding-top: 17px; padding-bottom: 14px; }
-  .explorer-app .side .genlayer-wordmark img { width: 124px; }
-  .explorer-app .brand-by { padding-bottom: 6px; font-size: 10px; }
-  .explorer-app .side nav a { min-height: 38px; padding-top: 8px !important; padding-bottom: 8px !important; }
-  .explorer-app .nav-group-label { padding: 10px 0 7px; margin-top: 3px; }
-  .explorer-app .side .pathrock-card { min-height: 66px; }
-  .explorer-app .pathrock-card small { display: none; }
+  .explorer-app .side { width: var(--sidebar-width); padding: 20px 9px 16px; }
+  .explorer-app .side .brand-lockup { gap: 6px; padding: 0 0 4px; }
+  .explorer-app .side .genlayer-wordmark img { width: 118px; }
+  .explorer-app .side .secret-explorer-label { font-size: 8px; letter-spacing: .2em; }
+  .explorer-app .side .brand-by { margin: 3px 0 0; padding-bottom: 17px; font-size: 9px; }
+  .explorer-app .side nav a { min-height: 34px; padding: 7px 9px !important; gap: 8px !important; font-size: 12.5px !important; }
+  .explorer-app .side nav a svg { width: 16px; height: 16px; }
+  .explorer-app .nav-group-label { font-size: 8px; padding: 9px 0 6px; margin: 7px 9px 0; }
 }
 @media (max-width: 920px) {
-  .explorer-app .side { width: min(264px, calc(100vw - 28px)); padding: 24px 14px 18px; background: var(--canvas); }
-  .explorer-app .side .genlayer-wordmark img { width: 143px; }
-  .explorer-app .side .brand-lockup { margin: 0; padding: 0 0 6px; align-items: flex-start; }
-  .explorer-app .side .secret-explorer-label { margin-left: 37px; font-size: 9px; }
-  .explorer-app .side .brand-by { font-size: 11px; padding-bottom: 10px; margin: 4px 0 0; }
+  .explorer-app .side { width: min(248px, calc(100vw - 28px)); padding: 22px 13px 18px; background: var(--canvas); }
+  .explorer-app .side .genlayer-wordmark img { width: 132px; }
+  .explorer-app .side .brand-lockup { margin: 0; padding: 0 0 6px; align-items: flex-start; gap: 6px; }
+  .explorer-app .side .secret-explorer-label { margin-left: 34px; font-size: 8px; }
+  .explorer-app .side .brand-by { font-size: 10px; padding-bottom: 16px; margin: 3px 0 0; }
   .explorer-app .sidebar-close {
-    display: grid; place-items: center; position: absolute; top: 22px; right: 15px;
-    width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 7px;
+    display: grid; place-items: center; position: absolute; top: 19px; right: 13px;
+    width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 6px;
     color: var(--tx2); background: var(--panel2); cursor: pointer;
   }
-  .explorer-app .side .pathrock-card { position: relative; }
-  .explorer-app .pathrock-card small { font-size: 11px; }
 }
