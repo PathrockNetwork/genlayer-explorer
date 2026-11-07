@@ -1,3 +1,4 @@
+import { ValidatorLink } from "../components/ValidatorLink";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { get, getTransactions } from "../api";
 import { usePolling } from "../usePolling";
@@ -1495,12 +1496,7 @@ function ConsensusDetail({ id, live }: { id: string; live: boolean }) {
                         {round.validators.map((v: any) => (
                           <tr key={v.address}>
                             <td>
-                              <a
-                                href={`#/validators/${v.address}`}
-                                title={v.address}
-                              >
-                                {short(v.address)}
-                              </a>
+                              <ValidatorLink address={v.address} moniker={v.moniker} />
                             </td>
                             <td>{v.leader ? "Leader" : "Validator"}</td>
                             <td>{voteLabel(v.vote)}</td>

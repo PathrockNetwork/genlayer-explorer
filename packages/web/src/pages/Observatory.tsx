@@ -1,3 +1,4 @@
+import { ValidatorLink } from "../components/ValidatorLink";
 import {
   useCallback,
   useEffect,
@@ -890,7 +891,7 @@ export function RoundComparison({ id, rounds }: { id: string; rounds: any[] }) {
             </p>
             {r.validators.map((v: any, j: number) => (
               <div className="obs-vote" key={`${v.address}-${j}`}>
-                <a href={`#/validators/${v.address}`}>{short(v.address)}</a>
+                <ValidatorLink address={v.address} moniker={v.moniker} />
                 <span>
                   {v.leader ? "Leader · " : ""}
                   {voteLabel(v.vote)}
@@ -952,8 +953,11 @@ function ValidatorView({ address, live }: { address: string; live: boolean }) {
       <div className="int-section-heading">
         <div>
           <span className="int-eyebrow">OBSERVED CONSENSUS PARTICIPATION</span>
-          <h2>{address ? "Validator history" : "Validator activity"}</h2>
+          <h2 dir="auto">{address ? d?.identity?.moniker || "Validator history" : "Validator activity"}</h2>
           {address && <p className="int-full-address">{address}</p>}
+          {address && d && <p className="validator-identity-note">
+            {d.identity?.fetched_at ? <>{d.identity.moniker ? "Published validator name" : "No moniker published"} · Read from finalized wallet identity <Timestamp value={d.identity.fetched_at} />{d.identity.last_error && " · Refresh delayed"}</> : "Validator name has not been indexed yet."}
+          </p>}
         </div>
         <Window
           days={days}
@@ -966,7 +970,7 @@ function ValidatorView({ address, live }: { address: string; live: boolean }) {
       <p className="int-coverage">
         Round assignments and execution votes from confirmed submissions. These
         observations do not measure accuracy, uptime, stake, or the full
-        validator set.
+        validator set. Names come from finalized validator-wallet identities and may change.
       </p>
       <ErrorState message={s.error} retry={s.refresh} />
       {d && (
@@ -1019,9 +1023,9 @@ function ValidatorView({ address, live }: { address: string; live: boolean }) {
                 }}
               >
                 <input
-                  aria-label="Validator address"
+                  aria-label="Validator name or address"
                   value={query}
-                  placeholder="Search validator address…"
+                  placeholder="Search validator name or address…"
                   onChange={(e) => setQuery(e.target.value)}
                 />
                 <button>Search</button>
@@ -1078,9 +1082,8 @@ function ValidatorView({ address, live }: { address: string; live: boolean }) {
                     : d.validators.map((r: any) => (
                         <tr key={r.address}>
                           <td>
-                            <a href={`#/validators/${r.address}`}>
-                              {short(r.address)}
-                            </a>
+                            <ValidatorLink address={r.address} moniker={r.moniker} />
+                            {r.moniker && r.moniker_stale && <small className="validator-identity-note">Last known name · refresh delayed</small>}
                           </td>
                           <td>{fmt(r.assignments)}</td>
                           <td>{fmt(r.transactions)}</td>
