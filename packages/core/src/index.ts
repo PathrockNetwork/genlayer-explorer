@@ -7,3 +7,5 @@ export * from "./evm";
 export * from "./genlayer";
 
 export * from "./observatory";
+
+export * from "./validatorIdentity";

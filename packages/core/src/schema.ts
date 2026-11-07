@@ -293,3 +293,12 @@ export const genReceiptObservations = pgTable(
     byTx: index("gen_receipt_observations_tx_idx").on(t.txId, t.observedAt),
   }),
 );
+
+/** Latest finalized validator-wallet identities; receipt activity remains independent. */
+export const genValidatorIdentities = pgTable("gen_validator_identities", {
+  address: text("address").primaryKey(),
+  moniker: text("moniker"),
+  checkedAt: timestamp("checked_at", { withTimezone: true }),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }),
+  lastError: text("last_error"),
+}, (t) => ({ byChecked: index("gen_validator_identities_checked_idx").on(t.checkedAt) }));
