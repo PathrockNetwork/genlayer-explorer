@@ -1,3 +1,4 @@
+import { ResponsiveTable } from "../components/ResponsiveTable";
 import { contractRoute, consensusRoute, getNativeTransactions, type NativeTransaction } from "../genlayer";
 import { preferredScrollBehavior } from "../appearance";
 import { Timestamp } from "../components/Timestamp";
@@ -178,7 +179,7 @@ export function Transactions({ d, live }: { d: Dashboard; live: boolean }) {
           <div className="txe-sample-note"><span>Filters and statistics cover the loaded transactions.{address ? ` History covers the ${retainHours} h indexed window only.` : ""}</span><span className={error ? "txe-warning" : ""}>{error ? "Feed unavailable" : older.length ? <>Updates paused while older pages are loaded · <button type="button" className="txe-inline-button" onClick={backToNewest}>Back to newest</button></> : live ? "Updates every 15s" : "Updates paused"}</span></div>
           {error && <div className="txe-notice" role="status">{error}{rows.length > 0 ? " Showing the last loaded sample." : " Please try again when the feed returns."}</div>}
           <div className="txe-table-scroll" tabIndex={0} role="region" aria-label="Transaction results">
-            <table className={`txe-table ${address ? "with-direction" : ""}`}>
+            <ResponsiveTable primaryColumn={1} className={`txe-table ${address ? "with-direction" : ""}`}>
               <thead><tr><th>#</th><th>Tx hash</th><th>Method</th><th>Block</th><th>From</th>{address && <th><span className="txe-visually-hidden">Direction</span></th>}<th>To</th><th>Value</th><th>Fee</th><th>Age</th><th>Status</th></tr></thead>
               <tbody>
                 {loading ? Array.from({ length: 10 }, (_, i) => <tr key={i}><td colSpan={cols}><Skeleton h={22} w={`${95 - i * 3}%`} /></td></tr>) : visible.map((tx, i) => <tr key={tx.hash} className={open === tx.hash ? "selected" : undefined} onClick={() => inspect(tx.hash)}>
@@ -196,7 +197,7 @@ export function Transactions({ d, live }: { d: Dashboard; live: boolean }) {
                 </tr>)}
                 {!loading && !visible.length && <tr><td className="txe-empty" colSpan={cols}>{error ? "Transaction data is unavailable." : rows.length ? "No transactions match these filters." : address ? `No transactions for this address in the ${retainHours} h indexed window.` : "No transactions in the newest indexed blocks."}{jump && <button type="button" onClick={followJump}>{jump.kind === "address" ? "Open this address" : jump.kind === "block" ? "Open this block" : "Look up this transaction"}</button>}{activeFilters && <button type="button" onClick={() => { setFilters(defaultTransactionFilters); setPage(1); }}>Clear filters</button>}</td></tr>}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
           {cursor !== null && currentPage >= pages && <button type="button" className="txe-load-older" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : `Load older transactions (before block ${fmt(Number(cursor.split(":")[0]))})`}</button>}
           <footer className="txe-footer"><span>{shown.length ? `${start + 1}–${Math.min(start + perPage, shown.length)} of ${shown.length}` : "0"} transactions</span>
@@ -245,7 +246,7 @@ function TransfersTable({ transfers, address, failed, retainHours, onInspect }: 
   return <>
     <div className="txe-sample-note txe-transfers-note"><span>Latest token transfers involving this address (or of this token) in the {retainHours} h indexed window · up to 25.</span></div>
     <div className="txe-table-scroll" tabIndex={0} role="region" aria-label="Token transfers">
-      <table className="txe-table txe-transfer-table">
+      <ResponsiveTable className="txe-table txe-transfer-table">
         <thead><tr><th>Tx hash</th><th>Block</th><th>Age</th><th>Token</th><th>From</th><th><span className="txe-visually-hidden">Direction</span></th><th>To</th><th>Amount</th></tr></thead>
         <tbody>
           {transfers === null ? (failed ? <tr><td className="txe-empty" colSpan={8}>Token transfers are temporarily unavailable.</td></tr> : Array.from({ length: 5 }, (_, i) => <tr key={i}><td colSpan={8}><Skeleton h={22} w={`${95 - i * 4}%`} /></td></tr>))
@@ -261,7 +262,7 @@ function TransfersTable({ transfers, address, failed, retainHours, onInspect }: 
             </tr>)}
           {transfers !== null && !transfers.length && <tr><td className="txe-empty" colSpan={8}>No ERC-20 or ERC-721 transfers for this address in the indexed window.</td></tr>}
         </tbody>
-      </table>
+      </ResponsiveTable>
     </div>
   </>;
 }
@@ -333,7 +334,7 @@ function TxDetailPanel({ hash, finalized, copied, onCopy, onClose }: { hash: str
   </>;
 }
 function TransferList({ transfers }: { transfers: Transfer[] }) {
-  return <div className="txe-table-scroll"><table className="txe-mini-table"><thead><tr><th>Token</th><th>From</th><th>To</th><th>Amount</th></tr></thead><tbody>{transfers.map((t, i) => <tr key={`${t.log_index ?? t.logIndex ?? i}`}><td><TokenLabel t={t} /></td><td><AddressLink value={t.from} /></td><td><AddressLink value={t.to} /></td><td><Amount t={t} /></td></tr>)}</tbody></table></div>;
+  return <div className="txe-table-scroll"><ResponsiveTable className="txe-mini-table"><thead><tr><th>Token</th><th>From</th><th>To</th><th>Amount</th></tr></thead><tbody>{transfers.map((t, i) => <tr key={`${t.log_index ?? t.logIndex ?? i}`}><td><TokenLabel t={t} /></td><td><AddressLink value={t.from} /></td><td><AddressLink value={t.to} /></td><td><Amount t={t} /></td></tr>)}</tbody></ResponsiveTable></div>;
 }
 function Fact({ label, children }: { label: string; children: React.ReactNode }) { return <div><dt>{label}</dt><dd>{children}</dd></div>; }
 function Glyph({ name }: { name: string }) {

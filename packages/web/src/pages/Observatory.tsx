@@ -1,3 +1,4 @@
+import { ResponsiveTable } from "../components/ResponsiveTable";
 import { ValidatorLink } from "../components/ValidatorLink";
 import {
   useCallback,
@@ -201,7 +202,7 @@ function Trend({
           <details className="obs-chart-data">
             <summary>View chart data</summary>
             <div className="int-scroll">
-              <table>
+              <ResponsiveTable>
                 <thead>
                   <tr>
                     <th>Bucket · UTC</th>
@@ -218,7 +219,7 @@ function Trend({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
           </details>
         </>
@@ -377,7 +378,7 @@ export function ContractHealth({
           </div>
           <Panel title="Method analytics" aside={<span>Up to 50 methods</span>}>
             <div className="int-scroll">
-              <table>
+              <ResponsiveTable>
                 <thead>
                   <tr>
                     <th>Method</th>
@@ -408,7 +409,7 @@ export function ContractHealth({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
             {!d.methods.length && (
               <Empty>No methods observed in this window.</Empty>
@@ -549,7 +550,7 @@ export function SourceHistory({
       {d && (
         <>
           <div className="int-scroll">
-            <table>
+            <ResponsiveTable>
               <thead>
                 <tr>
                   <th>Source SHA-256</th>
@@ -574,7 +575,7 @@ export function SourceHistory({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
           {!d.versions.length && (
             <Empty>No finalized source snapshots collected yet.</Empty>
@@ -1032,7 +1033,7 @@ function ValidatorView({ address, live }: { address: string; live: boolean }) {
               </form>
             )}
             <div className="int-scroll">
-              <table>
+              <ResponsiveTable>
                 <thead>
                   <tr>
                     {(address
@@ -1102,7 +1103,7 @@ function ValidatorView({ address, live }: { address: string; live: boolean }) {
                         </tr>
                       ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
             {!total && (
               <Empty>No observed assignments match this window.</Empty>
