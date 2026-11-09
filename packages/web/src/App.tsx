@@ -116,8 +116,14 @@ export default function App() {
 
   const appliedTheme = theme === "system" ? systemTheme : theme;
 
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [page]);
+
   useEffect(() => {
-    const onHash = () => { setPage(pageFromLocation()); setMobileNavOpen(false); setMobileSearchOpen(false); };
+    const onHash = () => {
+      const next = pageFromLocation();
+      setPage(next); setMobileNavOpen(false); setMobileSearchOpen(false);
+      if (["contracts", "consensus", "validators"].includes(next)) requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -226,18 +232,20 @@ export default function App() {
                 e.preventDefault();
                 const q = search.trim();
                 if (!q) return;
-                setMobileSearchOpen(false);
+                setSearchError(false);
                 apiSearch(q)
                   .then((r) => {
                     window.location.hash = r.type === "block" ? `/blocks/${r.id}` : r.type === "tx" ? `/transactions/${r.id}` : r.type === "contracts" ? `/contracts?q=${encodeURIComponent(r.id)}` : r.type === "contract" ? `/contracts/${r.id}` : r.type === "consensus" ? `/consensus/${r.id}` : `/transactions/address/${r.id}`;
                     setSearch("");
+                    setMobileSearchOpen(false);
                   })
                   .catch(() => setSearchError(true));
               }}
             >
               <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
-              <input ref={searchRef} value={search} onChange={(e) => { setSearch(e.target.value); setSearchError(false); }} placeholder="Search blocks, transactions, contracts, addresses…" aria-label="Search the network" aria-invalid={searchError} title={searchError ? "No block, transaction or address matches" : undefined} />
+              <input ref={searchRef} value={search} onChange={(e) => { setSearch(e.target.value); setSearchError(false); }} placeholder="Search blocks, transactions, contracts, addresses…" aria-label="Search the network" aria-invalid={searchError} aria-describedby={searchError ? "network-search-error" : undefined} title={searchError ? "No block, transaction or address matches" : undefined} />
               <kbd>⌘ K</kbd>
+              {searchError && <p id="network-search-error" className="global-search-error" role="alert">No match found. Check the block number, transaction hash, contract name or address.</p>}
             </form>
             <div className="global-actions" style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
               <button className="mobile-search-toggle" type="button" aria-label="Search the network" aria-expanded={mobileSearchOpen} onClick={() => { setMobileSearchOpen((open) => !open); requestAnimationFrame(() => searchRef.current?.focus()); }}>

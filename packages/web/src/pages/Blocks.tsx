@@ -43,7 +43,10 @@ export function Blocks({ d, live }: { d: Dashboard; live: boolean }) {
   const [tab, setTab] = useState("Header");
   const running = live && !paused;
   const retainHours = d.config?.indexer.retain_hours ?? 72;
-  const pick = (height: number) => { setSelected(height); location.hash = `/blocks/${height}`; };
+  const pick = (height: number) => {
+    setSelected(height); location.hash = `/blocks/${height}`;
+    if (window.innerWidth < 1800) requestAnimationFrame(() => document.querySelector('.bx-inspector')?.scrollIntoView({ behavior: preferredScrollBehavior(), block: "start" }));
+  };
   const copy = async (value: string) => { try { await copyText(value); setCopied(value); setCopyError(false); } catch { setCopyError(true); } };
   useEffect(() => { const sync = () => setSelected(heightFromLocation()); window.addEventListener("hashchange", sync); return () => window.removeEventListener("hashchange", sync); }, []);
   useEffect(() => { if (!copied) return; const t = setTimeout(() => setCopied(null), 1800); return () => clearTimeout(t); }, [copied]);
