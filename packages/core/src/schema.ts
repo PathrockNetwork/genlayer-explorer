@@ -293,3 +293,29 @@ export const genReceiptObservations = pgTable(
     byTx: index("gen_receipt_observations_tx_idx").on(t.txId, t.observedAt),
   }),
 );
+/** Validator staking snapshot, mirrored from the official bradbury scan API
+ *  (delegated proof-of-stake: self + delegated GEN, share-based rewards). */
+export const genStakingValidators = pgTable("gen_staking_validators", {
+  address: text("address").primaryKey(),
+  status: text("status").notNull(),
+  isActive: boolean("is_active").notNull().default(false),
+  selfStake: numeric("self_stake").notNull().default("0"),
+  delegatedStake: numeric("delegated_stake").notNull().default("0"),
+  totalShares: numeric("total_shares").notNull().default("0"),
+  apy: numeric("apy"),
+  validatorWeight: numeric("validator_weight"),
+  bannedUntilEpoch: integer("banned_until_epoch"),
+  operatorAddress: text("operator_address"),
+  ownerAddress: text("owner_address"),
+  metadata: jsonb("metadata"),
+  pendingDeposits: jsonb("pending_deposits"),
+  pendingWithdrawals: jsonb("pending_withdrawals"),
+  totalVotes7d: integer("total_votes_7d"),
+  minorityVotes7d: integer("minority_votes_7d"),
+  rotationPct7d: numeric("rotation_pct_7d"),
+  idlePct7d: numeric("idle_pct_7d"),
+  successfulAppeals7d: integer("successful_appeals_7d"),
+  transactionCount: integer("transaction_count"),
+  live: boolean("live"),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});
