@@ -12,6 +12,7 @@ import "./pages/overview.css";
 import "./pages/genlayer-overview.css";
 import "./theme.css";
 import "./sidebar.css";
+import "./responsive.css";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

@@ -1,3 +1,5 @@
+import { ResponsiveTable } from "../components/ResponsiveTable";
+import { ValidatorLink } from "../components/ValidatorLink";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { get, getTransactions } from "../api";
 import { usePolling } from "../usePolling";
@@ -132,7 +134,7 @@ function Pager({
 export function NativeTable({ rows }: { rows: NativeTransaction[] }) {
   return rows.length ? (
     <div className="int-scroll">
-      <table>
+      <ResponsiveTable>
         <thead>
           <tr>
             <th>Consensus ID</th>
@@ -182,7 +184,7 @@ export function NativeTable({ rows }: { rows: NativeTransaction[] }) {
             </tr>
           ))}
         </tbody>
-      </table>
+      </ResponsiveTable>
     </div>
   ) : (
     <div className="int-empty">
@@ -443,7 +445,7 @@ function ContractDirectory({ live }: { live: boolean }) {
         {state.data && (
           <>
             <div className="int-scroll">
-              <table>
+              <ResponsiveTable>
                 <thead>
                   <tr>
                     <th>Contract</th>
@@ -503,7 +505,7 @@ function ContractDirectory({ live }: { live: boolean }) {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </ResponsiveTable>
             </div>
             {!state.data.contracts.length && (
               <div className="int-empty">
@@ -1054,7 +1056,7 @@ function EvmContractTransactions({
       {s.error && <Notice retry={s.refresh}>{s.error}</Notice>}
       {s.data && (
         <div className="int-scroll">
-          <table>
+          <ResponsiveTable>
             <thead>
               <tr>
                 <th>Transaction</th>
@@ -1079,7 +1081,7 @@ function EvmContractTransactions({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </ResponsiveTable>
         </div>
       )}
     </Panel>
@@ -1482,7 +1484,7 @@ function ConsensusDetail({ id, live }: { id: string; live: boolean }) {
                     </span>
                   </div>
                   <div className="int-scroll">
-                    <table>
+                    <ResponsiveTable>
                       <thead>
                         <tr>
                           <th>Validator</th>
@@ -1495,12 +1497,7 @@ function ConsensusDetail({ id, live }: { id: string; live: boolean }) {
                         {round.validators.map((v: any) => (
                           <tr key={v.address}>
                             <td>
-                              <a
-                                href={`#/validators/${v.address}`}
-                                title={v.address}
-                              >
-                                {short(v.address)}
-                              </a>
+                              <ValidatorLink address={v.address} moniker={v.moniker} />
                             </td>
                             <td>{v.leader ? "Leader" : "Validator"}</td>
                             <td>{voteLabel(v.vote)}</td>
@@ -1512,7 +1509,7 @@ function ConsensusDetail({ id, live }: { id: string; live: boolean }) {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </ResponsiveTable>
                   </div>
                   <p className="int-footnote">
                     {round.votesCommitted} committed · {round.rotationsLeft}{" "}

@@ -26,8 +26,15 @@
     {
       "idx": 3,
       "version": "6",
-      "when": 1793232900000,
-      "tag": "0003_validator_staking",
+      "when": 1793577600000,
+      "tag": "0003_validator_identities",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793664000000,
+      "tag": "0004_validator_staking",
       "breakpoints": true
     }
   ]

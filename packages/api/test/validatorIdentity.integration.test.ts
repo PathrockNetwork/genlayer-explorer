@@ -1,0 +1,50 @@
+import { describe, expect, it, vi } from "vitest";
+import Fastify from "fastify";
+import { encodeIdentityFixture as encode } from "../../core/test/fixtures/validatorIdentity";
+import { createDb } from "@genlayer-explorer/core";
+import { refreshValidatorIdentities } from "../../indexer/src/validatorIdentity";
+import { registerGenLayerRoutes } from "../src/genlayer";
+import type { Ctx } from "../../indexer/src/context";
+import type { Deps } from "../src/routes";
+const url = process.env.DATABASE_URL;
+const enabled = !!url && new URL(url).pathname === "/genlayer_features_preview";
+describe.skipIf(!enabled)("validator identity cache with PostgreSQL", () => {
+  it("searches names and addresses, keeps duplicate names separate, preserves stale names on RPC failure and accepts owner-cleared names", async () => {
+    const { pool } = createDb(), client = await pool.connect(), app = Fastify();
+    const addresses = [1, 2, 3].map(n => "0x0000" + "fd".repeat(17) + n.toString(16).padStart(2, "0"));
+    const id = "0x" + "f1".repeat(32), name = "Identity Fixture %_ Café";
+    const rpc = { call: vi.fn(async (_method: string, args: any[]) => encode(addresses.slice(0, 2).includes(args[0].to) ? name : "")) };
+    const ctx = { pool: { query: client.query.bind(client) }, rpc, stopping: () => false } as unknown as Ctx;
+    const readIdentity = async () => (await client.query("SELECT * FROM gen_validator_identities WHERE address=$1", [addresses[0]])).rows[0];
+    try {
+      await client.query("BEGIN");
+      await client.query("INSERT INTO gen_transactions(id,recipient,submission_hash,block_number,created_at,confirmation,status) VALUES($1,$2,$1,10000000,now(),'confirmed','Finalized')", [id, addresses[0]]);
+      for (const [i, address] of addresses.entries()) await client.query("INSERT INTO gen_validator_votes(tx_id,round,position,address,leader,vote) VALUES($1,0,$2,$3,$4,1)", [id, i, address, i === 0]);
+      for (let pass = 0; pass < 10; pass++) if (!await refreshValidatorIdentities(ctx)) break;
+      const initial = await readIdentity(); expect(initial.moniker).toBe(name); expect(initial.last_error).toBeNull();
+      const receipt = { status: 7, recipient: addresses[0], roundData: [{ round: 0, roundValidators: addresses, validatorVotes: [1, 1, 1] }] };
+      const apiCall = vi.fn(async () => receipt);
+      registerGenLayerRoutes(app, { pool: ctx.pool, rpc: { call: apiCall } } as unknown as Deps);
+      const list = (await app.inject('/api/v1/genlayer/validators?q=' + encodeURIComponent('identity fixture %_ CAFÉ'))).json();
+      expect(list.total).toBe(2); expect(list.validators.map((v: any) => v.address)).toEqual(addresses.slice(0, 2));
+      expect(list.validators.every((v: any) => v.moniker === name && !v.moniker_stale)).toBe(true);
+      const next = (await app.inject('/api/v1/genlayer/validators?offset=1&q=' + encodeURIComponent(name))).json();
+      expect(next.total).toBe(2); expect(next.validators).toHaveLength(1);
+      const exact = (await app.inject('/api/v1/genlayer/validators?q=' + addresses[2].toUpperCase())).json();
+      expect(exact.total).toBe(1); expect(exact.validators[0].moniker).toBeNull();
+      expect((await app.inject('/api/v1/genlayer/validators?q=' + encodeURIComponent("Identity Fixture' OR 1=1--"))).json().total).toBe(0);
+      const profile = (await app.inject('/api/v1/genlayer/validators/' + addresses[0])).json();
+      expect(profile.identity.moniker).toBe(name); expect(profile.summary.assignments).toBe(1);
+      expect(apiCall).not.toHaveBeenCalled();
+      const transaction = (await app.inject('/api/v1/genlayer/transactions/' + id)).json();
+      expect(transaction.receipt.roundData[0].validators.map((v: any) => v.moniker)).toEqual([name, name, null]);
+      await client.query("UPDATE gen_validator_identities SET checked_at=now()-interval '2 hours' WHERE address=$1", [addresses[0]]);
+      rpc.call.mockRejectedValue(new Error("RPC outage")); await refreshValidatorIdentities(ctx);
+      const stale = await readIdentity(); expect(stale.moniker).toBe(name); expect(stale.fetched_at).toEqual(initial.fetched_at); expect(stale.last_error).toBeTruthy();
+      const staleList = (await app.inject('/api/v1/genlayer/validators?q=' + addresses[0])).json(); expect(staleList.validators[0].moniker_stale).toBe(true);
+      await client.query("UPDATE gen_validator_identities SET checked_at=now()-interval '10 minutes' WHERE address=$1", [addresses[0]]);
+      rpc.call.mockResolvedValue(encode("")); await refreshValidatorIdentities(ctx);
+      const cleared = await readIdentity(); expect(cleared.moniker).toBeNull(); expect(cleared.last_error).toBeNull();
+    } finally { await client.query("ROLLBACK"); client.release(); await app.close(); await pool.end(); }
+  });
+});

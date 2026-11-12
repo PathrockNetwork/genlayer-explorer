@@ -38,7 +38,8 @@ describe("observatory API", () => {
     for (const path of [
       `/contracts/${addr}/analytics?days=365`,
       `/genlayer/validators?offset=-1`,
-      `/genlayer/validators?q=name`,
+      `/genlayer/validators?q=${"x".repeat(129)}`,
+      `/genlayer/validators?q=%00`,
       `/genlayer/transactions?execution=success`,
       `/genlayer/transactions?confirmation=anything`,
       `/genlayer/transactions?days=100`,

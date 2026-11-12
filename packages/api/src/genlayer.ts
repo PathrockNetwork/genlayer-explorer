@@ -16,6 +16,7 @@ import {
 } from "@genlayer-explorer/core";
 import { registerObservatoryRoutes } from "./observatory";
 import { nativeOverviewActivity } from "./nativeOverview";
+import { withValidatorMonikers } from "./validatorIdentity";
 import type { Deps } from "./routes";
 
 const fail = (message: string, statusCode = 400): never => {
@@ -450,7 +451,7 @@ export function registerGenLayerRoutes(
         );
       return {
         id,
-        receipt,
+        receipt: await withValidatorMonikers(pool, receipt),
         confirmation: indexed?.confirmation ?? "unindexed",
         execution_result: indexed?.execution_result ?? "unknown",
         stale,

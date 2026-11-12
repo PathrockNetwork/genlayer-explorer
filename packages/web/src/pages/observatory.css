@@ -327,3 +327,11 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.validator-link { display: inline-flex; flex-direction: column; gap: 3px; min-width: 0; max-width: 260px; vertical-align: middle; }
+.validator-link .validator-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 13px/1.4 'Inter Variable',sans-serif; }
+.validator-link small { display: block; margin-top: 0 !important; font: 400 11px/1.4 'JetBrains Mono Variable',monospace; color: var(--tx3); }
+.obs-vote .validator-link { max-width: 190px; }
+.validator-identity-note { color: var(--tx3); font-size: 11px; line-height: 1.6; }
+.int-section-heading h2 { overflow-wrap: anywhere; }
+@media (max-width: 650px) { .validator-link { max-width: 190px; }.obs-vote .validator-link { max-width: 145px; } }
