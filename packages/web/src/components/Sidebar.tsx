@@ -6,6 +6,7 @@ export const NAV = [
   { id: "contracts", label: "Contracts", icon: "file", group: "Intelligence" },
   { id: "consensus", label: "Consensus", icon: "consensus" },
   { id: "validators", label: "Validators", icon: "shield" },
+  { id: "staking", label: "Staking", icon: "transfer", group: "Consensus" },
   { id: "blocks", label: "Blocks", icon: "block", group: "Chain" },
   { id: "transactions", label: "Transactions", icon: "transfer" },
   { id: "endpoints", label: "Network", icon: "back" },

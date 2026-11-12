@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useDashboard } from "./useDashboard";
 import { Contracts, Consensus } from "./pages/Intelligence";
 import { Validators } from "./pages/Observatory";
+import { Staking } from "./pages/Staking";
 import { Overview } from "./pages/Overview";
 import { ExplorerHorizon, GenLayerWordmark } from "./components/ExplorerBrand";
 import { ApiDocs } from "./pages/ApiDocs";
@@ -34,6 +35,7 @@ const TITLES: Record<PageId, string> = {
   rpc: "RPC Console",
   api: "API Reference",
   settings: "Settings",
+  staking: "Staking",
 };
 
 const SUBTITLES: Record<PageId, string> = {
@@ -47,6 +49,7 @@ const SUBTITLES: Record<PageId, string> = {
   rpc: "Query a GenLayer JSON-RPC endpoint directly from your browser.",
   api: "Build with indexed GenLayer data.",
   settings: "Configure the explorer and its data display.",
+  staking: "Delegated proof-of-stake: self stake, delegation, and rewards across validators.",
 };
 
 const VALID_PAGES = new Set<string>(NAV.map((n) => n.id));
@@ -363,6 +366,7 @@ export default function App() {
           {page === "contracts" && <Contracts live={live} />}
           {page === "consensus" && <Consensus live={live} />}
           {page === "validators" && <Validators live={live} />}
+          {page === "staking" && <Staking live={live} />}
           {page === "blocks" && <Blocks d={d} live={live} />}
           {page === "transactions" && <Transactions d={d} live={live} />}
           {page === "endpoints" && <RpcDirectory d={d} />}

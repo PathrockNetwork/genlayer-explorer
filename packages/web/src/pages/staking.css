@@ -1,0 +1,21 @@
+/* Staking directory: shared panels, dense table, GEN amounts right-aligned. */
+.stk-page { display: flex; flex-direction: column; gap: 16px; }
+.stk-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.stk-tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.stk-tile-label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx3); }
+.stk-tile strong { font-size: 17px; font-weight: 650; letter-spacing: -0.02em; }
+.stk-tile small { color: var(--tx3); }
+.stk-note { color: var(--tx3); font-size: 12px; max-width: 60ch; line-height: 1.55; }
+.stk-table-wrap { overflow-x: auto; }
+.stk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.stk-table th { text-align: left; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx3); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.stk-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.stk-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.stk-table tr.stk-inactive { opacity: 0.55; }
+.stk-address { color: var(--brand2); font-family: "JetBrains Mono Variable", monospace; font-size: 12px; }
+.stk-address:hover { text-decoration: underline; }
+.stk-live { margin-left: 8px; font-size: 10px; color: var(--tx3); }
+.stk-live.on { color: var(--ok); }
+.stk-status { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+.stk-status.active { color: var(--ok); border-color: var(--ok); }
+.stk-status.jailed { color: var(--bad); border-color: var(--bad); }
