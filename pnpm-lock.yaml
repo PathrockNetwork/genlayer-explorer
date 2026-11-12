@@ -98,12 +98,18 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: '5'
         version: 5.3.0
+      genlayer-js:
+        specifier: 1.1.8
+        version: 1.1.8(eslint@9.39.5)(typescript@5.9.3)
       react:
         specifier: ^18.3.1
         version: 18.3.1
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      viem:
+        specifier: 2.21.54
+        version: 2.21.54(typescript@5.9.3)
     devDependencies:
       '@types/react':
         specifier: ^18.3.12
@@ -4958,11 +4964,11 @@ snapshots:
   ox@0.1.2(typescript@5.9.3):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
-      '@noble/curves': 1.7.0
-      '@noble/hashes': 1.6.1
-      '@scure/bip32': 1.6.0
-      '@scure/bip39': 1.5.0
-      abitype: 1.0.7(typescript@5.9.3)
+      '@noble/curves': 1.9.1
+      '@noble/hashes': 1.8.0
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
+      abitype: 1.2.3(typescript@5.9.3)
       eventemitter3: 5.0.1
     optionalDependencies:
       typescript: 5.9.3
@@ -5549,8 +5555,8 @@ snapshots:
 
   webauthn-p256@0.0.10:
     dependencies:
-      '@noble/curves': 1.7.0
-      '@noble/hashes': 1.6.1
+      '@noble/curves': 1.9.1
+      '@noble/hashes': 1.8.0
 
   which-boxed-primitive@1.1.1:
     dependencies:

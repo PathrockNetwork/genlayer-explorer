@@ -219,6 +219,14 @@ export function formatUnits(value: string | null | undefined, decimals = 18, max
   return `${neg ? "-" : ""}${wholeStr}${frac ? `.${frac}` : ""}`;
 }
 
+/** "42" or "1.5" GEN → wei string (no decimals libraries on purpose). */
+export function parseGEN(amount: string): string {
+  const clean = amount.trim();
+  if (!/^\d*(\.\d*)?$/.test(clean) || clean === "" || clean === ".") throw new Error("Enter a valid GEN amount");
+  const [whole = "0", frac = ""] = clean.split(".");
+  if (frac.length > 18) throw new Error("Too many decimal places");
+  return (BigInt(whole + frac.padEnd(18, "0"))).toString();
+}
 export const gen = (wei: string | null | undefined, maxFraction = 4) => (wei == null ? "—" : `${formatUnits(wei, 18, maxFraction)} GEN`);
 
 /** Compact GEN: "2,214,658,182 GEN" → "2.21B GEN". */

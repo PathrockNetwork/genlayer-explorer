@@ -19,3 +19,22 @@
 .stk-status { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
 .stk-status.active { color: var(--ok); border-color: var(--ok); }
 .stk-status.jailed { color: var(--bad); border-color: var(--bad); }
+.stk-connect { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.stk-connect-btn { background: var(--brand2); color: var(--canvas); border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 600; cursor: pointer; }
+.stk-connected { color: var(--tx3); font-size: 12px; }
+.stk-connected code { color: var(--tx2); }
+.stk-error { color: var(--bad); font-size: 12px; }
+.stk-tx { color: var(--ok); font-size: 12px; }
+.stk-delegate { background: transparent; color: var(--brand2); border: 1px solid var(--brand2); border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.stk-delegate:disabled { opacity: 0.4; cursor: not-allowed; }
+.stk-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: grid; place-items: center; z-index: 100; }
+.stk-modal-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; width: min(440px, 92vw); display: flex; flex-direction: column; gap: 10px; }
+.stk-modal-card h3 { margin: 0; font-size: 16px; }
+.stk-modal-card p { margin: 0; color: var(--tx3); font-size: 12px; line-height: 1.55; }
+.stk-modal-card label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--tx3); }
+.stk-modal-card input { background: var(--panel2); border: 1px solid var(--line); color: var(--tx); border-radius: 8px; padding: 10px 12px; font-size: 15px; }
+.stk-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.stk-modal-actions button { border-radius: 8px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--tx); }
+.stk-modal-actions .stk-primary { background: var(--brand2); border-color: var(--brand2); color: var(--canvas); font-weight: 600; }
+.stk-primary:disabled { opacity: 0.5; }
+.stk-muted { color: var(--tx3); }

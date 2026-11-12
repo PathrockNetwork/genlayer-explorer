@@ -7,7 +7,8 @@ import { useState, type ReactNode } from "react";
 import { get } from "../api";
 import { usePolling } from "../usePolling";
 import { pollingKey } from "../pollingCache";
-import { fmt, gen, short } from "../lib";
+import { fmt, gen, parseGEN, short } from "../lib";
+import { createClient, chains } from "genlayer-js";
 import { Timestamp } from "../components/Timestamp";
 import { addressRoute } from "../transactionExplorer";
 import "./staking.css";
@@ -71,6 +72,25 @@ function Tile({ label, value, sub }: { label: string; value: ReactNode; sub?: Re
 }
 
 const wei = (v: string | null | undefined): string => (v === null || v === undefined ? "—" : gen(v, 2));
+const MIN_DELEGATE_GEN = 42;
+
+/** Staking writes are client-side only: the user's own wallet signs the
+ *  delegatorJoin transaction via the GenLayer MetaMask Snap; this explorer
+ *  never sees a key. Reads stay on the indexed scan mirror. */
+let writeClient: ReturnType<typeof createClient> | null = null;
+async function getWriteClient() {
+  let client = writeClient;
+  if (!client) {
+    const eth = (window as any).ethereum;
+    if (!eth) throw new Error("No browser wallet detected. Install MetaMask and try again.");
+    const chain = { ...chains.testnetBradbury, stakingContract: { address: STAKING_CONTRACT } };
+    client = createClient({ chain });
+    writeClient = client;
+    await (client as any).metamaskClient(); // adds bradbury + installs the GenLayer snap
+  }
+  return client;
+}
+const STAKING_CONTRACT = "0x4A4449E617F8D10FDeD0b461CadEf83939E821A5";
 const compactWei = (v: string | null | undefined): string => (v === null || v === undefined ? "—" : gen(v, 0));
 
 export function Staking({ live }: { live: boolean }) {
@@ -94,9 +114,54 @@ export function Staking({ live }: { live: boolean }) {
   const s = state?.summary ?? null;
   const validators = state?.validators ?? [];
   const withDelegation = validators.filter((v: StakingValidator) => v.delegated_stake !== "0").length;
+  const [wallet, setWallet] = useState<string | null>(null);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const [delegateTo, setDelegateTo] = useState<StakingValidator | null>(null);
+  const [amount, setAmount] = useState("");
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const connect = async () => {
+    setWalletError(null);
+    try {
+      await getWriteClient();
+      const accounts = await (window as any).ethereum.request({ method: "eth_accounts" });
+      setWallet(accounts?.[0] ?? null);
+    } catch (e) {
+      setWalletError((e as Error).message);
+    }
+  };
+
+  const delegate = async () => {
+    if (!delegateTo || !wallet) return;
+    setWalletError(null);
+    setBusy(true);
+    try {
+      const weiAmount = parseGEN(amount);
+      if (BigInt(weiAmount) < 42n * 10n ** 18n) throw new Error(`Minimum delegation is ${MIN_DELEGATE_GEN} GEN`);
+      const client = await getWriteClient();
+      const result = await (client as any).delegatorJoin({ validator: delegateTo.address, amount: weiAmount });
+      setTxHash(typeof result === "string" ? result : result?.hash ?? result?.txHash ?? JSON.stringify(result).slice(0, 66));
+      setDelegateTo(null);
+      setAmount("");
+    } catch (e) {
+      setWalletError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="stk-page">
+      <div className="stk-connect">
+        {wallet ? (
+          <span className="stk-connected">Wallet connected: <code>{short(wallet)}</code> — delegation requests are signed in your wallet; this site never sees your keys.</span>
+        ) : (
+          <button className="stk-connect-btn" type="button" onClick={connect}>Connect wallet (MetaMask + GenLayer Snap)</button>
+        )}
+        {walletError && <span className="stk-error">{walletError}</span>}
+        {txHash && <span className="stk-tx">Delegation submitted: <code>{short(txHash)}</code> — it will appear as a pending deposit once the consensus decides it.</span>}
+      </div>
       <div className="stk-tiles">
         <Tile label="Validators" value={s ? fmt(s.total) : "—"} sub={s ? `${fmt(s.active)} active` : undefined} />
         <Tile label="Total self stake" value={s ? compactWei(s.self_stake) : "—"} sub="GEN" />
@@ -119,7 +184,7 @@ export function Staking({ live }: { live: boolean }) {
               <thead>
                 <tr>
                   <th>Validator</th><th>Status</th><th className="num">Self stake</th><th className="num">Delegated</th>
-                  <th className="num">Total</th><th className="num">APY</th><th className="num">Votes 7d</th><th>Pending</th><th>Updated</th>
+                  <th className="num">Total</th><th className="num">APY</th><th className="num">Votes 7d</th><th>Pending</th><th>Updated</th><th />
                 </tr>
               </thead>
               <tbody>
@@ -141,6 +206,7 @@ export function Staking({ live }: { live: boolean }) {
                         : "—"}
                     </td>
                     <td><Timestamp value={v.fetched_at} /></td>
+                    <td><button className="stk-delegate" type="button" onClick={() => { setDelegateTo(v); setAmount(""); }} disabled={!wallet} title={wallet ? "Delegate GEN to this validator" : "Connect your wallet first"}>Delegate</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -148,6 +214,25 @@ export function Staking({ live }: { live: boolean }) {
           </div>
         )}
       </Panel>
+
+      {delegateTo && (
+        <div className="stk-modal" role="dialog" aria-label="Delegate GEN">
+          <div className="stk-modal-card">
+            <h3>Delegate to {short(delegateTo.address)}</h3>
+            <p>You are leaving the read-only explorer: the transaction is built here but <strong>signed and broadcast by your own wallet</strong> via the GenLayer Snap. Review it there before approving.</p>
+            <label>Amount (GEN, minimum {MIN_DELEGATE_GEN})</label>
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="42" inputMode="decimal" autoFocus />
+            <p className="stk-muted">Deposits activate two epochs after the current one; exits lock for 7 epochs before claiming.</p>
+            {walletError && <p className="stk-error">{walletError}</p>}
+            <div className="stk-modal-actions">
+              <button type="button" onClick={() => { setDelegateTo(null); setAmount(""); }} disabled={busy}>Cancel</button>
+              <button type="button" className="stk-primary" onClick={delegate} disabled={busy || !amount}>
+                {busy ? "Waiting for wallet…" : "Sign delegation in wallet"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
