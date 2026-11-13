@@ -3,8 +3,15 @@ import { sleep, type Ctx } from "./context";
 
 /** Two concurrent reads, at most twenty wallets per pass; no RPC work in API requests. */
 export async function refreshValidatorIdentities(ctx: Ctx, rpc = ctx.rpc) {
-  await ctx.pool.query(`INSERT INTO gen_validator_identities(address)
-    SELECT DISTINCT address FROM gen_validator_votes WHERE address ~ '^0x[0-9a-f]{40}$'
+  // Loose index scan over (address, tx_id): one probe per validator instead of
+  // reading every vote row to find a few dozen distinct addresses.
+  await ctx.pool.query(`WITH RECURSIVE seen AS (
+      (SELECT address FROM gen_validator_votes ORDER BY address LIMIT 1)
+      UNION ALL
+      SELECT (SELECT v.address FROM gen_validator_votes v WHERE v.address > seen.address ORDER BY v.address LIMIT 1)
+      FROM seen WHERE seen.address IS NOT NULL)
+    INSERT INTO gen_validator_identities(address)
+    SELECT address FROM seen WHERE address ~ '^0x[0-9a-f]{40}$'
     ON CONFLICT(address) DO NOTHING`);
   const { rows } = await ctx.pool.query<{ address: string }>(`SELECT address FROM gen_validator_identities
     WHERE checked_at IS NULL OR checked_at < now() - CASE WHEN last_error IS NULL THEN interval '1 hour' ELSE interval '5 minutes' END
