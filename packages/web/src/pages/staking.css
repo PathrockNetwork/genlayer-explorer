@@ -38,3 +38,12 @@
 .stk-modal-actions .stk-primary { background: var(--brand2); border-color: var(--brand2); color: var(--canvas); font-weight: 600; }
 .stk-primary:disabled { opacity: 0.5; }
 .stk-muted { color: var(--tx3); }
+.stk-console { display: flex; flex-direction: column; gap: 12px; }
+.stk-console-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.stk-console-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.stk-console-grid > div { display: flex; flex-direction: column; gap: 2px; }
+.stk-console-grid strong { font-size: 15px; font-weight: 650; }
+.stk-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.stk-actions button { background: transparent; color: var(--brand2); border: 1px solid var(--brand2); border-radius: 8px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
+.stk-actions button:hover { background: var(--panel2); }
+.stk-actions button:disabled { opacity: 0.5; }
