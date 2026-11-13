@@ -71,7 +71,7 @@ export function registerStakingConsoleRoute(app: FastifyInstance, { pool }: Deps
     const role = v.address === addr ? "validator" : v.operator_address === addr ? "operator" : "owner";
 
     const [identity, votes, delegators] = await Promise.all([
-      pool.query(`SELECT moniker, logo, website, description, email, twitter, telegram, github, checked_at
+      pool.query(`SELECT moniker, checked_at
                   FROM gen_validator_identities WHERE address = $1`, [v.address]),
       pool.query(
         `SELECT count(*)::int AS votes_30d,
