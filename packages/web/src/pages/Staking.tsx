@@ -8,7 +8,7 @@ import { get } from "../api";
 import { usePolling } from "../usePolling";
 import { pollingKey } from "../pollingCache";
 import { fmt, gen, parseGEN, short } from "../lib";
-import { createClient, chains } from "genlayer-js";
+import { connectWallet, stakingWallet, type StakingWallet } from "../stakingWallet";
 import { Timestamp } from "../components/Timestamp";
 import { Chip, Label } from "../components/ui";
 import { addressRoute } from "../transactionExplorer";
@@ -75,23 +75,6 @@ function Tile({ label, value, sub }: { label: string; value: ReactNode; sub?: Re
 const wei = (v: string | null | undefined): string => (v === null || v === undefined ? "—" : gen(v, 2));
 const MIN_DELEGATE_GEN = 42;
 
-/** Staking writes are client-side only: the user's own wallet signs the
- *  delegatorJoin transaction via the GenLayer MetaMask Snap; this explorer
- *  never sees a key. Reads stay on the indexed scan mirror. */
-let writeClient: ReturnType<typeof createClient> | null = null;
-async function getWriteClient() {
-  let client = writeClient;
-  if (!client) {
-    const eth = (window as any).ethereum;
-    if (!eth) throw new Error("No browser wallet detected. Install MetaMask and try again.");
-    const chain = { ...chains.testnetBradbury, stakingContract: { address: STAKING_CONTRACT } };
-    client = createClient({ chain });
-    writeClient = client;
-    await (client as any).metamaskClient(); // adds bradbury + installs the GenLayer snap
-  }
-  return client;
-}
-const STAKING_CONTRACT = "0x4A4449E617F8D10FDeD0b461CadEf83939E821A5";
 const compactWei = (v: string | null | undefined): string => (v === null || v === undefined ? "—" : gen(v, 0));
 
 /**
@@ -122,9 +105,7 @@ export function Staking({ live }: { live: boolean }) {
   const connect = async () => {
     setWalletError(null);
     try {
-      await getWriteClient();
-      const accounts = await (window as any).ethereum.request({ method: "eth_accounts" });
-      setWallet(accounts?.[0] ?? null);
+      setWallet(await connectWallet());
     } catch (e) {
       setWalletError((e as Error).message);
     }
@@ -137,9 +118,7 @@ export function Staking({ live }: { live: boolean }) {
     try {
       const weiAmount = parseGEN(amount);
       if (BigInt(weiAmount) < 42n * 10n ** 18n) throw new Error(`Minimum delegation is ${MIN_DELEGATE_GEN} GEN`);
-      const client = await getWriteClient();
-      const result = await (client as any).delegatorJoin({ validator: delegateTo.address, amount: weiAmount });
-      setTxHash(typeof result === "string" ? result : result?.hash ?? result?.txHash ?? JSON.stringify(result).slice(0, 66));
+      setTxHash(await stakingWallet(wallet).delegatorJoin({ validator: delegateTo.address, amount: weiAmount }));
       setDelegateTo(null);
       setAmount("");
     } catch (e) {
@@ -148,6 +127,15 @@ export function Staking({ live }: { live: boolean }) {
       setBusy(false);
     }
   };
+
+  // Follow the wallet when the user switches or disconnects the account there.
+  useEffect(() => {
+    const eth = (window as any).ethereum;
+    if (!wallet || !eth?.on) return;
+    const onAccounts = (accounts: string[]) => setWallet(accounts?.[0]?.toLowerCase() ?? null);
+    eth.on("accountsChanged", onAccounts);
+    return () => eth.removeListener?.("accountsChanged", onAccounts);
+  }, [wallet]);
 
   // Validator console: re-fetch whenever the wallet changes or after actions.
   useEffect(() => {
@@ -161,13 +149,11 @@ export function Staking({ live }: { live: boolean }) {
     return () => { cancelled = true; };
   }, [wallet, txHash]);
 
-  const runAction = async (fn: (client: any) => Promise<any>) => {
+  const runAction = async (fn: (actions: StakingWallet) => Promise<string>) => {
+    if (!wallet) return;
     setWalletError(null); setBusy(true);
     try {
-      const client: any = await getWriteClient();
-      const result = await fn(client);
-      const r: any = result;
-      setTxHash(typeof r === "string" ? r : r?.hash ?? r?.txHash ?? "submitted");
+      setTxHash(await fn(stakingWallet(wallet)));
       setActionModal(null);
     } catch (e) {
       setWalletError((e as Error).message);
@@ -183,7 +169,7 @@ export function Staking({ live }: { live: boolean }) {
         {wallet ? (
           <span className="stk-connected">Wallet connected: <code>{short(wallet)}</code> — delegation requests are signed in your wallet; this site never sees your keys.</span>
         ) : (
-          <button className="stk-connect-btn" type="button" onClick={connect}>Connect wallet (MetaMask + GenLayer Snap)</button>
+          <button className="stk-connect-btn" type="button" onClick={connect}>Connect wallet</button>
         )}
         {walletError && <span className="stk-error">{walletError}</span>}
         {txHash && <span className="stk-tx">Delegation submitted: <code>{short(txHash)}</code> — it will appear as a pending deposit once the consensus decides it.</span>}
@@ -242,7 +228,7 @@ export function Staking({ live }: { live: boolean }) {
       </Panel>
 
       {wallet && (
-        <Panel title="Validator console" aside={<span className="stk-note">Actions are signed by your own wallet via the GenLayer Snap. Only the validator's owner key can change stake and identity; priming and delegator claims are permissionless.</span>}>
+        <Panel title="Validator console" aside={<span className="stk-note">Actions are signed by your own wallet. Only the validator's owner key can change stake and identity; priming and delegator claims are permissionless.</span>}>
           {consoleLoading ? <div className="int-empty">Loading console…</div>
           : console_ && console_.is_validator === false ? <div className="int-empty">{console_.hint}</div>
           : consoleV && (
@@ -261,8 +247,8 @@ export function Staking({ live }: { live: boolean }) {
                 <div><Label>Votes 30d</Label><strong>{console_.activity_30d?.votes_30d ?? 0}</strong></div>
               </div>
               <div className="stk-actions">
-                <button type="button" onClick={() => runAction(async (c) => (c as any).validatorPrime({ validator: act! }) as any)}>Prime now</button>
-                <button type="button" onClick={() => runAction(async (c) => (c as any).delegatorClaim({ validator: act! }) as any)}>Claim rewards</button>
+                <button type="button" onClick={() => runAction((c) => c.validatorPrime({ validator: act! }))}>Prime now</button>
+                <button type="button" onClick={() => runAction((c) => c.delegatorClaim({ validator: act! }))}>Claim rewards</button>
                 <button type="button" onClick={() => setActionModal("claimDelegator")}>Claim for delegator…</button>
                 <button type="button" onClick={() => { setIdentityForm({ moniker: console_.identity?.moniker ?? "", logoUri: console_.identity?.logo ?? "", website: console_.identity?.website ?? "", description: console_.identity?.description ?? "" }); setActionModal("identity"); }}>Set identity…</button>
                 <button type="button" onClick={() => setActionModal("exit")}>Exit stake…</button>
@@ -289,7 +275,7 @@ export function Staking({ live }: { live: boolean }) {
             <div className="stk-modal-actions">
               <button type="button" onClick={() => setActionModal(null)} disabled={busy}>Cancel</button>
               <button type="button" className="stk-primary" disabled={busy || !identityForm.moniker}
-                onClick={() => runAction(async (c) => await (c as any).setIdentity({
+                onClick={() => runAction((c) => c.setIdentity({
                   validator: consoleV.address, moniker: identityForm.moniker,
                   logoUri: identityForm.logoUri || undefined, website: identityForm.website || undefined,
                   description: identityForm.description || undefined,
@@ -310,7 +296,7 @@ export function Staking({ live }: { live: boolean }) {
             <div className="stk-modal-actions">
               <button type="button" onClick={() => setActionModal(null)} disabled={busy}>Cancel</button>
               <button type="button" className="stk-primary" disabled={busy || !exitShares}
-                onClick={() => runAction(async (c) => await (c as any).validatorExit({ validator: consoleV.address, shares: exitShares }))}>Sign in wallet</button>
+                onClick={() => runAction((c) => c.validatorExit({ validator: consoleV.address, shares: exitShares }))}>Sign in wallet</button>
             </div>
           </div>
         </div>
@@ -327,7 +313,7 @@ export function Staking({ live }: { live: boolean }) {
             <div className="stk-modal-actions">
               <button type="button" onClick={() => setActionModal(null)} disabled={busy}>Cancel</button>
               <button type="button" className="stk-primary" disabled={busy || !claimDelegator}
-                onClick={() => runAction(async (c) => await (c as any).delegatorClaim({ validator: consoleV.address, delegator: claimDelegator }))}>Sign in wallet</button>
+                onClick={() => runAction((c) => c.delegatorClaim({ validator: consoleV.address, delegator: claimDelegator }))}>Sign in wallet</button>
             </div>
           </div>
         </div>
@@ -337,7 +323,7 @@ export function Staking({ live }: { live: boolean }) {
         <div className="stk-modal" role="dialog" aria-label="Delegate GEN">
           <div className="stk-modal-card">
             <h3>Delegate to {short(delegateTo.address)}</h3>
-            <p>You are leaving the read-only explorer: the transaction is built here but <strong>signed and broadcast by your own wallet</strong> via the GenLayer Snap. Review it there before approving.</p>
+            <p>You are leaving the read-only explorer: the transaction is built here but <strong>signed and broadcast by your own wallet</strong>. Review it there before approving.</p>
             <label>Amount (GEN, minimum {MIN_DELEGATE_GEN})</label>
             <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="42" inputMode="decimal" autoFocus />
             <p className="stk-muted">Deposits activate two epochs after the current one; exits lock for 7 epochs before claiming.</p>
