@@ -16,6 +16,7 @@ const TTL: Record<string, number> = {
   "/api/v1/contracts/:address/sources/:hash": 30_000,
   "/api/v1/genlayer/validators": 15_000,
   "/api/v1/staking/validators": 60_000,
+  "/api/v1/staking/console/:address": 15_000,
   "/api/v1/genlayer/validators/:address": 15_000,
 };
 type Entry = { body: string; contentType: string; at: number; expires: number; bytes: number };

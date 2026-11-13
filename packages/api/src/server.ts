@@ -11,7 +11,7 @@ import { JsonRpc, createDb, loadEnv, rpcUrlsFromEnv } from "@genlayer-explorer/c
 import { registerGenLayerRoutes } from "./genlayer.js";
 import { registerRoutes } from "./routes.js";
 import { registerNetworkRoutes } from "./network.js";
-import { registerStakingRoutes } from "./staking.js";
+import { registerStakingRoutes, registerStakingConsoleRoute } from "./staking.js";
 import { registerResponseCache, assetCacheControl } from "./responseCache.js";
 
 loadEnv();
@@ -63,6 +63,7 @@ registerResponseCache(fastify);
 registerRoutes(fastify, { pool, rpc });
 registerNetworkRoutes(fastify, { pool, rpc });
 registerStakingRoutes(fastify, { pool, rpc });
+registerStakingConsoleRoute(fastify, { pool, rpc });
 registerGenLayerRoutes(fastify, { pool, rpc });
 
 /** Which web bundle is deployed, so long-lived tabs can offer a reload. */
