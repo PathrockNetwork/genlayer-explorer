@@ -94,23 +94,14 @@ async function getWriteClient() {
 const STAKING_CONTRACT = "0x4A4449E617F8D10FDeD0b461CadEf83939E821A5";
 const compactWei = (v: string | null | undefined): string => (v === null || v === undefined ? "—" : gen(v, 0));
 
+/**
+ * Module-level so its identity is stable: usePolling restarts whenever `load`
+ * changes, and an inline closure would refetch on every render.
+ */
+const loadStaking = () => get<StakingData>("/api/v1/staking/validators");
+
 export function Staking({ live }: { live: boolean }) {
-  const [state, setState] = useState<StakingData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const key = pollingKey("staking");
-  usePolling(
-    async () => {
-      try {
-        setState(await get<StakingData>("/api/v1/staking/validators"));
-        setError(null);
-      } catch (e) {
-        setError((e as Error).message);
-      }
-    },
-    live,
-    30_000,
-    key,
-  );
+  const { data: state, error } = usePolling(loadStaking, live, 30_000, pollingKey("staking"));
 
   const s = state?.summary ?? null;
   const validators = state?.validators ?? [];
