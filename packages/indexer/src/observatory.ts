@@ -133,9 +133,16 @@ export async function analyzeStoredReceipts(ctx: Ctx) {
     if (r) await persistReceipt(ctx, x.id, r, true);
   }
 }
+/**
+ * Source usually appears within minutes of a deployment being seen. A contract
+ * still without code after about a day (~2.2s blocks) is almost always a
+ * failed deployment, so it drops to the slow cadence instead of costing a
+ * failing RPC call every ten minutes forever.
+ */
+const PROFILE_RETRY_BLOCKS = 40_000;
 export async function refreshContractProfiles(ctx: Ctx, rpc = ctx.rpc) {
   const { rows } = await ctx.pool.query(
-    `SELECT address FROM gen_contracts WHERE kind='intelligent' AND (profile_checked_at IS NULL OR profile_checked_at<now()-CASE WHEN profile IS NULL THEN interval '10 minutes' ELSE interval '6 hours' END) ORDER BY profile_checked_at NULLS FIRST,first_seen_block DESC LIMIT 8`,
+    `SELECT address FROM gen_contracts WHERE kind='intelligent' AND (profile_checked_at IS NULL OR profile_checked_at<now()-CASE WHEN profile IS NULL AND first_seen_block>(SELECT head FROM gen_sync WHERE id=1)-${PROFILE_RETRY_BLOCKS} THEN interval '10 minutes' ELSE interval '6 hours' END) ORDER BY profile_checked_at NULLS FIRST,first_seen_block DESC LIMIT 8`,
   );
   let next = 0;
   await Promise.all(
