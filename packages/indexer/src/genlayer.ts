@@ -48,9 +48,11 @@ export async function indexNativeRange(
   try {
     await client.query("BEGIN");
     await client.query(
-      "UPDATE gen_transactions SET confirmation='orphaned',updated_at=now() WHERE block_number BETWEEN $1 AND $2 AND confirmation<>'confirmed' AND NOT(id=ANY($3::text[]))",
+      "UPDATE gen_transactions SET confirmation='orphaned',updated_at=now() WHERE block_number BETWEEN $1 AND $2 AND confirmation='provisional' AND NOT(id=ANY($3::text[]))",
       [from, to, [...found.keys()]],
     );
+    // The live window is re-read every pass: an unchanged submission must not
+    // rewrite its row (and every index entry) each time it is seen again.
     for (const s of found.values()) {
       await client.query(
         `INSERT INTO gen_transactions (id,recipient,submission_hash,block_number,confirmation,submission_block_hash) VALUES ($1,$2,$3,$4,$5,$6)
@@ -61,7 +63,9 @@ export async function indexNativeRange(
         execution_result=CASE WHEN gen_transactions.confirmation='orphaned' OR gen_transactions.submission_hash<>EXCLUDED.submission_hash OR (gen_transactions.submission_block_hash IS NOT NULL AND gen_transactions.submission_block_hash<>EXCLUDED.submission_block_hash) THEN 'unknown' ELSE gen_transactions.execution_result END,
         checked_at=CASE WHEN gen_transactions.confirmation='orphaned' OR gen_transactions.submission_hash<>EXCLUDED.submission_hash OR (gen_transactions.submission_block_hash IS NOT NULL AND gen_transactions.submission_block_hash<>EXCLUDED.submission_block_hash) THEN NULL ELSE gen_transactions.checked_at END,
         analysis_version=CASE WHEN gen_transactions.confirmation='orphaned' OR gen_transactions.submission_hash<>EXCLUDED.submission_hash OR (gen_transactions.submission_block_hash IS NOT NULL AND gen_transactions.submission_block_hash<>EXCLUDED.submission_block_hash) OR gen_transactions.confirmation<>EXCLUDED.confirmation THEN 0 ELSE gen_transactions.analysis_version END
-        WHERE gen_transactions.confirmation<>'confirmed' OR EXCLUDED.confirmation='confirmed'`,
+        WHERE (gen_transactions.confirmation<>'confirmed' OR EXCLUDED.confirmation='confirmed')
+        AND (gen_transactions.recipient,gen_transactions.submission_hash,gen_transactions.block_number,gen_transactions.submission_block_hash,gen_transactions.confirmation)
+          IS DISTINCT FROM (EXCLUDED.recipient,EXCLUDED.submission_hash,EXCLUDED.block_number,EXCLUDED.submission_block_hash,EXCLUDED.confirmation)`,
         [
           s.id,
           s.recipient,
