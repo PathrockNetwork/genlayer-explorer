@@ -12,7 +12,12 @@ export type WalletProvider = { request: (args: { method: string; params?: unknow
 
 const chain = chains.testnetBradbury;
 const CHAIN_ID_HEX = `0x${chain.id.toString(16)}`;
-const STAKING_ADDRESS = (chain.stakingContract as { address: string }).address;
+/**
+ * Bradbury's live staking proxy. genlayer-js 1.1.8 still ships the previous
+ * deployment's address, which has no code on this chain: value sent there
+ * would simply be lost.
+ */
+export const STAKING_ADDRESS = "0xD8fBa96C0dBB0257028dBc0107060b958e5c7113";
 const STAKING_ABI = abi.STAKING_ABI as Abi;
 const VALIDATOR_WALLET_ABI = abi.VALIDATOR_WALLET_ABI as Abi;
 
@@ -57,6 +62,11 @@ export async function connectWallet(eth: WalletProvider = injectedWallet()): Pro
 export function stakingWallet(from: string, eth: WalletProvider = injectedWallet()) {
   const send = async (to: string, data: string, value?: bigint): Promise<string> => {
     await ensureBradbury(eth);
+    // Every staking target is a contract. Never hand the wallet a transaction
+    // (least of all one carrying value) for an address without code.
+    const code = await eth.request({ method: "eth_getCode", params: [to, "latest"] });
+    if (typeof code !== "string" || code.length <= 2)
+      throw new Error(`No contract found at ${to} on ${chain.name}. Nothing was sent.`);
     return eth.request({
       method: "eth_sendTransaction",
       params: [{ from, to, data, ...(value === undefined ? {} : { value: `0x${value.toString(16)}` }) }],

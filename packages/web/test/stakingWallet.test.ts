@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { abi, chains } from "genlayer-js";
 import { decodeFunctionData, type Abi } from "viem";
-import { connectWallet, stakingWallet, type WalletProvider } from "../src/stakingWallet";
+import { connectWallet, stakingWallet, STAKING_ADDRESS, type WalletProvider } from "../src/stakingWallet";
 
 const account = "0x6359e7e85d6b0783e0199a915e48f3c353fc9785",
   validator = "0x" + "12".repeat(20),
   bradbury = "0x107d";
 
-function wallet(options: { chainId?: string; knowsChain?: boolean; accounts?: string[] } = {}) {
+function wallet(options: { chainId?: string; knowsChain?: boolean; accounts?: string[]; code?: string } = {}) {
   let chainId = options.chainId ?? bradbury;
   const calls: { method: string; params?: any }[] = [];
   const provider: WalletProvider = {
@@ -20,6 +20,7 @@ function wallet(options: { chainId?: string; knowsChain?: boolean; accounts?: st
           if (options.knowsChain === false) throw Object.assign(new Error("Unrecognized chain"), { code: 4902 });
           chainId = bradbury; return null;
         case "wallet_addEthereumChain": chainId = bradbury; return null;
+        case "eth_getCode": return options.code ?? "0x6080";
         case "eth_sendTransaction": return "0x" + "ab".repeat(32);
         default: throw new Error(`unexpected ${args.method}`);
       }
@@ -55,11 +56,16 @@ describe("staking wallet", () => {
     expect(hash).toMatch(/^0x[0-9a-f]{64}$/);
     const tx = w.calls.find((c) => c.method === "eth_sendTransaction")!.params[0];
     expect(tx.from).toBe(account);
-    expect(tx.to).toBe((chains.testnetBradbury.stakingContract as any).address);
+    expect(tx.to).toBe(STAKING_ADDRESS);
     expect(BigInt(tx.value)).toBe(42n * 10n ** 18n);
     const call = decodeFunctionData({ abi: abi.STAKING_ABI as Abi, data: tx.data });
     expect(call.functionName).toBe("delegatorJoin");
     expect(String(call.args?.[0]).toLowerCase()).toBe(validator);
+  });
+  it("refuses to send anything to an address without contract code", async () => {
+    const w = wallet({ code: "0x" });
+    await expect(stakingWallet(account, w.provider).delegatorJoin({ validator, amount: "42000000000000000000" })).rejects.toThrow("No contract found");
+    expect(w.methods()).not.toContain("eth_sendTransaction");
   });
   it("claims for the connected account by default and sends owner actions to the validator wallet", async () => {
     const w = wallet(), actions = stakingWallet(account, w.provider);
