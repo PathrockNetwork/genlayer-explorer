@@ -197,7 +197,7 @@ export default function App() {
 
   return (
     <div
-      className={`explorer-app${page === "overview" ? " overview-app" : ""}${page === "contracts" ? " contracts-app" : ""}`}
+      className={`explorer-app${page === "overview" ? " overview-app" : ""}${page === "contracts" ? " contracts-app" : ""}${page === "consensus" ? " decisions-app" : ""}`}
       data-theme={appliedTheme}
       data-density={appearance.density}
       data-reduce-motion={appearance.reduceMotion}
@@ -345,7 +345,8 @@ export default function App() {
             <ExplorerHorizon/>
             <div>
               {page === "rpc" && <div className="direct-rpc-breadcrumb"><span>Home</span><b>›</b><strong>RPC Console</strong></div>}
-              <h1>{page === "contracts" && <ExplorerIcon name="database" className="cd-title-icon"/>}{TITLES[page]}</h1>
+              {page === "consensus" && <div className="dd-breadcrumb"><a href="#/contracts">Intelligence</a><span>›</span><span>Contract decisions</span></div>}
+              <h1>{page === "consensus" && <ExplorerIcon name="block" className="dd-title-icon"/>}{page === "contracts" && <ExplorerIcon name="database" className="cd-title-icon"/>}{TITLES[page]}</h1>
               <span className="page-subtitle">{SUBTITLES[page]}</span>
             </div>
             <span className="slogan">GenLayer Bradbury · Chain 4221<small>Intelligent contracts for a more open web</small></span>

@@ -22,6 +22,13 @@ export type Contract = {
   source_available?: boolean;
   bytecode?: string | null;
 };
+export type DecisionProgress = {
+  round: number | null;
+  assigned: number | null;
+  revealed: number | null;
+  timestamps: Record<string, string | null>;
+  last_vote_seconds: number | null;
+};
 export type NativeTransaction = {
   id: string;
   recipient: string;
@@ -38,6 +45,7 @@ export type NativeTransaction = {
   confirmation?: string;
   observed_at?: string;
   contract_name?: string | null;
+  progress?: DecisionProgress | null;
 };
 export type NativeOverview = {
   contracts: { total: number; intelligent: number; new_24h: number };
