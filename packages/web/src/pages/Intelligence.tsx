@@ -1343,7 +1343,7 @@ function ConsensusDirectory({ live }: { live: boolean }) {
           </>
         ) : (
           !s.error && (
-            <div className="int-empty">Loading consensus activity…</div>
+            <div className="int-empty">Loading contract decisions…</div>
           )
         )}
         <p className="int-footnote">
@@ -1367,7 +1367,7 @@ function ConsensusDetail({ id, live }: { id: string; live: boolean }) {
   return (
     <div className="int-page">
       <a className="int-back" href="#/consensus">
-        ← Consensus activity
+        ← Contract decisions
       </a>
       <div className="int-detail-heading">
         <div>

@@ -1,4 +1,4 @@
-/* Shared GenLayer reference: grouped navigation, blue active pill and bottom sponsor. */
+/* Direct Overview navigation with category menus in the current GenLayer theme. */
 .explorer-app { --sidebar-width: 244px; }
 .explorer-app .side {
   display: flex; flex-direction: column; gap: 0;
@@ -11,7 +11,7 @@
 .explorer-app .side .genlayer-wordmark img { width: 154px; }
 .explorer-app .side .secret-explorer-label { margin-left: 0; font-size: 10px; letter-spacing: .2em; }
 .explorer-app .side .brand-by { margin: 4px 0 0; padding-bottom: 14px; font-size: 11px; text-align: center; }
-.explorer-app .side nav { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; margin: 0 0 20px; gap: 2px; }
+.explorer-app .side nav { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; margin: 0 0 20px; gap: 6px; }
 .explorer-app .side nav > div { flex: none; }
 .explorer-app .side nav a {
   display: flex; align-items: center; gap: 11px !important; min-height: 44px;
@@ -26,13 +26,6 @@
 .explorer-app .side nav a:focus-visible { outline-offset: -4px; }
 .explorer-app .side nav a.active:focus-visible { outline-color: #fff; }
 .explorer-app .side nav a svg { width: 19px; height: 19px; flex: none; opacity: 1; }
-.explorer-app .side nav .nav-group-label {
-  display: flex; align-items: center; gap: 10px; padding: 0; margin: 12px 12px 6px;
-  border: 0; color: var(--tx2); font: 600 10px/1.4 'Inter Variable',sans-serif;
-  letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
-}
-.explorer-app .side nav .nav-group-label::after { content: ""; flex: 1; height: 1px; background: var(--line2); }
-.explorer-app .side nav > div:first-child .nav-group-label { margin-top: 4px; padding: 0; border: 0; }
 .explorer-app .side .pathrock-card {
   display: flex; align-items: flex-start; position: relative; flex-shrink: 0;
   margin: auto 0 14px; min-height: 132px; padding: 16px; gap: 11px;
@@ -66,4 +59,42 @@
     width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 7px;
     color: var(--tx2); background: var(--panel2); cursor: pointer;
   }
+}
+
+/* Category buttons retain the existing navigation colors, typography and pill shape. */
+.explorer-app .side .nav-category-toggle {
+  display: flex; align-items: center; gap: 11px; width: 100%; min-height: 44px;
+  padding: 0 14px; border: 1px solid transparent; border-radius: 999px;
+  background: transparent; color: var(--tx2); text-align: left; cursor: pointer;
+  font: 500 14px/1.3 'Inter Variable',sans-serif;
+}
+.explorer-app .side .nav-category-toggle > .ov-icon { width: 19px; height: 19px; flex: none; }
+.explorer-app .side .nav-category-toggle > span { flex: 1; min-width: 0; }
+.explorer-app .side .nav-category-toggle:hover,.explorer-app .side .nav-category-toggle.is-open { background: var(--panel2); color: var(--tx); border-color: var(--line2); }
+.explorer-app .side .nav-category-toggle.active { color: #fff; background: linear-gradient(105deg,#1455ff,#1639ff 70%,#243bff); border-color: #3568ff; box-shadow: inset 0 1px 0 #ffffff20, 0 3px 16px #003eff30; }
+.explorer-app .side .nav-category-toggle:focus-visible { outline: 2px solid var(--brand2); outline-offset: -4px; }
+.explorer-app .side .nav-category-toggle.active:focus-visible { outline-color: #fff; }
+.explorer-app .side .nav-category-toggle > .nav-category-chevron { width: 15px; height: 15px; transform: rotate(-90deg); }
+.explorer-app .side .nav-category-toggle[aria-expanded="true"] > .nav-category-chevron { transform: rotate(90deg); }
+.explorer-app .sidebar-submenu { min-width: 0; color: var(--tx); border: 1px solid var(--line2); border-radius: 10px; background: var(--panel); box-shadow: var(--shadow); padding: 8px; }
+.explorer-app .sidebar-flyout { position: fixed; z-index: 150; width: 280px; max-width: calc(100vw - var(--sidebar-width) - 20px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
+.explorer-app .sidebar-submenu h2 { margin: 0; padding: 7px 10px 12px; color: var(--tx3); font: 600 10px/1.4 'Inter Variable',sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.explorer-app .sidebar-submenu > div { display: grid; gap: 4px; }
+.explorer-app .sidebar-submenu a,.explorer-app .side nav .sidebar-submenu a {
+  display: flex; align-items: flex-start; gap: 10px !important; min-height: 60px; padding: 11px 10px !important;
+  border: 1px solid transparent; border-radius: 7px !important; color: var(--tx2); background: transparent;
+  text-decoration: none; white-space: normal; transform: none; box-shadow: none;
+}
+.explorer-app .sidebar-submenu a > svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.explorer-app .sidebar-submenu a > span { min-width: 0; }
+.explorer-app .sidebar-submenu a strong { display: block; color: inherit; font: 500 14px/1.4 'Inter Variable',sans-serif; }
+.explorer-app .sidebar-submenu a small { display: block; margin-top: 4px; color: var(--tx3); font: 400 11px/1.5 'Inter Variable',sans-serif; }
+.explorer-app .sidebar-submenu a:hover { background: var(--panel2); color: var(--tx); }
+.explorer-app .sidebar-submenu a.active,.explorer-app .side nav .sidebar-submenu a.active { background: var(--brandSoft) !important; color: var(--brand2) !important; border-color: var(--line2); box-shadow: none; }
+.explorer-app .sidebar-submenu a:focus-visible { outline: 2px solid var(--brand2); outline-offset: -2px; }
+@media (max-width: 920px) {
+  .explorer-app .side nav { gap: 6px; }
+  .explorer-app .sidebar-inline { margin: 6px 0 6px 10px; padding: 5px; background: var(--panel2); box-shadow: none; }
+  .explorer-app .sidebar-inline h2 { display: none; }
+  .explorer-app .side .nav-category-toggle[aria-expanded="true"] > .nav-category-chevron { transform: none; }
 }

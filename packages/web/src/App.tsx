@@ -27,7 +27,7 @@ export type Theme = "dark" | "light" | "system";
 const TITLES: Record<PageId, string> = {
   overview: "GenLayer Overview",
   contracts: "Contracts",
-  consensus: "Intelligent Contract Consensus",
+  consensus: "Contract decisions",
   validators: "Validator Activity",
   blocks: "Blocks / Chain history",
   transactions: "Transactions",
