@@ -17,6 +17,7 @@ export type Contract = {
   first_seen_block: number | null;
   calls_24h: number;
   callers_24h?: number;
+  activity?: { since: string; until: string; previous_calls: number; points: { t: string; calls: number }[] };
   balance?: string;
   source_available?: boolean;
   bytecode?: string | null;

@@ -8,7 +8,7 @@ import { Contracts, Consensus } from "./pages/Intelligence";
 import { Validators } from "./pages/Observatory";
 import { Staking } from "./pages/Staking";
 import { Overview } from "./pages/Overview";
-import { ExplorerHorizon, GenLayerWordmark } from "./components/ExplorerBrand";
+import { ExplorerHorizon, ExplorerIcon, GenLayerWordmark } from "./components/ExplorerBrand";
 import { ApiDocs } from "./pages/ApiDocs";
 import { Settings } from "./pages/Settings";
 import { DirectRpc } from "./pages/DirectRpc";
@@ -197,7 +197,7 @@ export default function App() {
 
   return (
     <div
-      className={`explorer-app${page === "overview" ? " overview-app" : ""}`}
+      className={`explorer-app${page === "overview" ? " overview-app" : ""}${page === "contracts" ? " contracts-app" : ""}`}
       data-theme={appliedTheme}
       data-density={appearance.density}
       data-reduce-motion={appearance.reduceMotion}
@@ -345,7 +345,7 @@ export default function App() {
             <ExplorerHorizon/>
             <div>
               {page === "rpc" && <div className="direct-rpc-breadcrumb"><span>Home</span><b>›</b><strong>RPC Console</strong></div>}
-              <h1>{TITLES[page]}</h1>
+              <h1>{page === "contracts" && <ExplorerIcon name="database" className="cd-title-icon"/>}{TITLES[page]}</h1>
               <span className="page-subtitle">{SUBTITLES[page]}</span>
             </div>
             <span className="slogan">GenLayer Bradbury · Chain 4221<small>Intelligent contracts for a more open web</small></span>
