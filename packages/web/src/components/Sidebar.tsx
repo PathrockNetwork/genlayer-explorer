@@ -215,7 +215,6 @@ export function Sidebar({ page, go, mobileOpen, onNavigate }: {
       <a className="pathrock-card" href="https://pathrocknetwork.org/" target="_blank" rel="noreferrer" aria-label="Visit Pathrock Network" onClick={() => setOpenCategory(null)}>
         <span className="pathrock-orbit" aria-hidden="true"/>
         <div><strong>PATHROCK<br/>NETWORK</strong><small>Open infrastructure for a more decentralized tomorrow.</small></div>
-      <ExplorerIcon name="arrowRight" className="ov-sponsor-arrow"/>
       </a>
     </aside>
     {!compact && category && portalHost && createPortal(submenu(category, true), portalHost)}
