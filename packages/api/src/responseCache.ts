@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 /** Public snapshots only. Live method reads, health, version and search bypass this cache. */
 const TTL: Record<string, number> = {
   "/api/v1/genlayer/overview": 5_000,
+  "/api/v1/genlayer/decisions/overview": 5_000,
   "/api/v1/genlayer/transactions": 3_000,
   "/api/v1/genlayer/transactions/:id": 3_000,
   "/api/v1/genlayer/transactions/:id/result": 3_000,

@@ -16,6 +16,7 @@ import {
 } from "@genlayer-explorer/core";
 import { registerObservatoryRoutes } from "./observatory";
 import { nativeOverviewActivity } from "./nativeOverview";
+import { registerDecisionOverview, decisionEvidenceSql, decisionProgress } from "./decisionOverview";
 import { loadContractActivity } from "./contractActivity";
 import { withValidatorMonikers } from "./validatorIdentity";
 import type { Deps } from "./routes";
@@ -84,6 +85,7 @@ export function registerGenLayerRoutes(
     );
   };
   registerObservatoryRoutes(app, { pool, rpc });
+  registerDecisionOverview(app, { pool, rpc });
   let runningReads = 0;
   app.get("/api/v1/genlayer/overview", async () => {
     const until = new Date(),
@@ -370,6 +372,8 @@ export function registerGenLayerRoutes(
       execution?: string;
       confirmation?: string;
       days?: string;
+      q?: string;
+      include_progress?: string;
     };
   }>("/api/v1/genlayer/transactions", async (req) => {
     const address = req.query.address ? addressOf(req.query.address) : null,
@@ -397,15 +401,21 @@ export function registerGenLayerRoutes(
       fail("Invalid confirmation filter");
     const days = req.query.days ?? "";
     if (!["", "1", "7", "30"].includes(days)) fail("Invalid time window");
+    const q = (req.query.q ?? "").trim().toLowerCase();
+    if (q.length > 128 || /[\x00-\x1f\x7f]/.test(q)) fail("Invalid decision search");
+    if (req.query.include_progress !== undefined && req.query.include_progress !== "1") fail("Invalid progress option");
+    const progress = req.query.include_progress === "1";
+    if (progress && limit > 25) fail("Progress is limited to 25 decisions per page");
     const until = new Date(),
       since = days ? new Date(until.getTime() - Number(days) * 86400000) : null;
     const where = `WHERE ($1::text IS NULL OR t.recipient=$1) AND ($2='' OR t.status=$2) AND ($3::text IS NULL OR t.submission_hash=$3)
       AND ($4='' OR t.execution_result=$4 OR ($4='failed' AND t.execution_result IN ('error','timeout','disagreement','violation')))
       AND (($5='' AND t.confirmation<>'orphaned') OR t.confirmation=$5)
-      AND ($6::timestamptz IS NULL OR (t.created_at >= $6 AND t.created_at <= $7))`;
+      AND ($6::timestamptz IS NULL OR (t.created_at >= $6 AND t.created_at <= $7))
+      AND ($10='' OR position($10 in t.id)>0 OR position($10 in t.recipient)>0 OR position($10 in t.submission_hash)>0 OR position($10 in lower(coalesce(t.method,'')))>0 OR position($10 in lower(coalesce(c.name,'')))>0)`;
     const [list, count] = await Promise.all([
       pool.query(
-        `SELECT t.id,t.recipient,t.submission_hash,t.block_number,t.sender,t.created_at,t.observed_at,t.status,t.kind,t.method,t.checked_at,t.execution_result,t.confirmation,c.name contract_name,jsonb_array_length(t.receipt->'roundData') rounds FROM gen_transactions t LEFT JOIN gen_contracts c ON c.address=t.recipient ${where} ORDER BY t.block_number DESC,t.id LIMIT $8 OFFSET $9`,
+        `SELECT t.id,t.recipient,t.submission_hash,t.block_number,t.sender,t.created_at,t.observed_at,t.status,t.kind,t.method,t.checked_at,t.execution_result,t.confirmation,c.name contract_name,jsonb_array_length(t.receipt->'roundData') rounds${progress ? `,${decisionEvidenceSql} evidence` : ""} FROM gen_transactions t LEFT JOIN gen_contracts c ON c.address=t.recipient ${where} ORDER BY t.block_number DESC,t.id LIMIT $8 OFFSET $9`,
         [
           address,
           status,
@@ -416,15 +426,16 @@ export function registerGenLayerRoutes(
           until,
           limit,
           offset,
+          q,
         ],
       ),
       pool.query(
-        `SELECT count(*)::int count FROM gen_transactions t ${where}`,
-        [address, status, submission, execution, confirmation, since, until],
+        `SELECT count(*)::int count FROM gen_transactions t LEFT JOIN gen_contracts c ON c.address=t.recipient ${where.replaceAll("$10", "$8")}`,
+        [address, status, submission, execution, confirmation, since, until, q],
       ),
     ]);
     return {
-      transactions: list.rows.map(row),
+      transactions: list.rows.map(x => { const { evidence, ...rest } = x; return { ...row(rest), ...(progress ? { progress: decisionProgress(evidence) } : {}) }; }),
       total: count.rows[0].count,
       limit,
       offset,
