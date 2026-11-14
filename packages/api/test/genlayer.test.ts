@@ -48,6 +48,8 @@ describe("native explorer API", () => {
     expect((await app.inject("/api/v1/contracts?offset=-1")).statusCode).toBe(
       400,
     );
+    expect((await app.inject("/api/v1/contracts?include_activity=1&limit=26")).statusCode).toBe(400);
+    expect((await app.inject("/api/v1/contracts?include_activity=invalid")).statusCode).toBe(400);
     expect(call).not.toHaveBeenCalled();
     expect(query).not.toHaveBeenCalled();
   });

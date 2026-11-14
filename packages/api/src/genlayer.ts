@@ -16,6 +16,7 @@ import {
 } from "@genlayer-explorer/core";
 import { registerObservatoryRoutes } from "./observatory";
 import { nativeOverviewActivity } from "./nativeOverview";
+import { loadContractActivity } from "./contractActivity";
 import { withValidatorMonikers } from "./validatorIdentity";
 import type { Deps } from "./routes";
 
@@ -139,6 +140,7 @@ export function registerGenLayerRoutes(
       sort?: string;
       offset?: string;
       limit?: string;
+      include_activity?: string;
     };
   }>("/api/v1/contracts", async (req) => {
     const q = (req.query.q ?? "").toLowerCase().trim();
@@ -150,18 +152,23 @@ export function registerGenLayerRoutes(
     if (!["recent", "activity"].includes(sort)) fail("Invalid sort");
     const limit = Math.max(1, numberOf(req.query.limit, 25, 100)),
       offset = numberOf(req.query.offset, 0, 1000000);
+    if (req.query.include_activity !== undefined && req.query.include_activity !== "1") fail("Invalid activity option");
+    const includeActivity = req.query.include_activity === "1";
+    if (includeActivity && limit > 25) fail("Activity is limited to 25 contracts per page");
+    const until = new Date(), since = new Date(until.getTime() - 86400000);
     const query = `FROM gen_contracts c WHERE ($1='all' OR c.kind=$1) AND ($2='' OR position($2 in c.address)>0 OR position($2 in lower(coalesce(c.name,'')))>0 OR position($2 in lower(coalesce(c.profile->>'description','')))>0 OR position($2 in lower(coalesce(c.profile->'methods','[]')::text))>0)`;
     const [list, count] = await Promise.all([
       pool.query(
         `SELECT c.*,
-      CASE WHEN c.kind='intelligent' THEN (SELECT count(*)::int FROM gen_transactions t WHERE t.recipient=c.address AND t.confirmation='confirmed' AND t.created_at>=now()-interval '24 hours') ELSE (SELECT count(*)::int FROM transactions t WHERE t."to"=c.address AND t.time>=now()-interval '24 hours') END calls_24h
+      CASE WHEN c.kind='intelligent' THEN (SELECT count(*)::int FROM gen_transactions t WHERE t.recipient=c.address AND t.confirmation='confirmed' AND t.created_at>=$5 AND t.created_at<=$6) ELSE (SELECT count(*)::int FROM transactions t WHERE t."to"=c.address AND t.time>=$5 AND t.time<=$6) END calls_24h
       ${query} ORDER BY ${sort === "activity" ? "calls_24h DESC," : ""} c.first_seen_block DESC,c.address LIMIT $3 OFFSET $4`,
-        [kind, q, limit, offset],
+        [kind, q, limit, offset, since, until],
       ),
       pool.query(`SELECT count(*)::int count ${query}`, [kind, q]),
     ]);
+    const activity = includeActivity ? await loadContractActivity(pool, list.rows, until) : null;
     return {
-      contracts: list.rows.map(row),
+      contracts: list.rows.map(x => ({ ...row(x), ...(activity ? { activity: activity.get(x.address) } : {}) })),
       total: count.rows[0].count,
       limit,
       offset,
